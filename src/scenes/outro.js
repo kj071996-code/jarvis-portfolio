@@ -113,20 +113,23 @@ export function createOutro(config, reducedMotion) {
       .to(glowMat, { opacity: 0.9, duration: 1.6, ease: 'power1.in' }, 0.6)
       .to(glow.scale, { x: 42, y: 42, z: 42, duration: 2.0, ease: 'power2.in' }, 0.6)
       // starburst: discs fly out and flash, then settle to a FAINT remnant
-      // (0.12, not 0.5) — a bright 0.5 fill keeps the whole frame white and
-      // defeats the dark rest; the soft core glow below carries the settle.
+      // (0.04) — the earlier 0.12 still read as bright dots, and the
+      // brief's 0.75 strands / 0.3 glow left the whole frame white: additive
+      // layers stack and bloom lifts them, so a "dark rest" needs far lower
+      // settles than the numbers suggest. The soft core glow below carries
+      // the settle.
       .to(burst.scale, { x: 4, y: 4, z: 4, duration: 0.9, ease: 'power3.out' }, 1.9)
       .to(burstMat, { opacity: 1, duration: 0.3, ease: 'power1.out' }, 1.9)
-      .to(burstMat, { opacity: 0.12, duration: 1.2, ease: 'power1.out' }, 2.5)
+      .to(burstMat, { opacity: 0.04, duration: 1.2, ease: 'power1.out' }, 2.5)
       // The white dive is the climax; the resting state stays DARK, with a
       // soft white core still glowing. An all-white rest would wash out the
       // Esc hint and the return pill and break the dark brand; a core that
       // fades to 0 reads as "it fell back to black". So the strands stay
-      // bright (0.75) and the glow settles at a soft 0.3, spread wide
-      // (scale 26) instead of blazing at full opacity.
-      .to(mat, { opacity: 0.75, duration: 1.0, ease: 'power1.out' }, 2.2)
-      .to(glowMat, { opacity: 0.3, duration: 1.2, ease: 'power2.out' }, 2.6)
-      .to(glow.scale, { x: 26, y: 26, z: 26, duration: 1.2, ease: 'power2.out' }, 2.6)
+      // faint (0.18, not the brief's 0.75 — that left bright rings) and the
+      // glow settles dim and contained (0.12, scale 20, not 0.3 / 26).
+      .to(mat, { opacity: 0.18, duration: 1.0, ease: 'power1.out' }, 2.2)
+      .to(glowMat, { opacity: 0.12, duration: 1.2, ease: 'power2.out' }, 2.6)
+      .to(glow.scale, { x: 20, y: 20, z: 20, duration: 1.2, ease: 'power2.out' }, 2.6)
     // full-screen white flash at the starburst peak (DOM overlay, if present)
     const flash = document.getElementById('vortex-flash')
     if (flash) {

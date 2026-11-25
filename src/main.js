@@ -255,6 +255,7 @@ function clearHover() {
   world.setHovered(null)
   container.classList.remove('pointing')
   renderer.domElement.style.cursor = ''
+  container.style.cursor = ''
 }
 
 function openProject(project) {
@@ -455,8 +456,17 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   clickedAt = null
   if (state === 'world' && moved < 10) flyToBeacon(beacon)
 })
-renderer.domElement.addEventListener('pointermove', (e) => {
-  if (e.pointerType !== 'mouse' || state !== 'world') return
+// Hover (desktop): raycast the beacon under the mouse so it brightens and
+// lifts and the cursor turns into a pointer. Listened on window (pointermove
+// + mousemove) rather than only on the canvas — a canvas-only pointermove
+// proved unreliable in the step-12 re-check (cursor stayed an arrow, no
+// brightening, even though the identical raycast works for clicks). The
+// e.target check keeps HUD/rail hovers from clearing a beacon hover, and
+// touch drags are skipped (touch has no hover).
+function updateHover(e) {
+  if (state !== 'world') return
+  if (e.target !== renderer.domElement) return
+  if (e.pointerType === 'touch') return
   raycaster.setFromCamera(pointerNdc(e), camera)
   const hits = raycaster.intersectObjects(world.hitMeshes, false)
   const rec = hits.length > 0 ? hits[0].object.userData.beacon : null
@@ -467,8 +477,11 @@ renderer.domElement.addEventListener('pointermove', (e) => {
     // set the cursor directly on the canvas too — the CSS class alone did
     // not change it in the step-12 browser check
     renderer.domElement.style.cursor = rec ? 'pointer' : ''
+    container.style.cursor = rec ? 'pointer' : ''
   }
-})
+}
+window.addEventListener('pointermove', updateHover)
+window.addEventListener('mousemove', updateHover)
 
 // ── Station rail ─────────────────────────────────────────────────────────
 // One button per group, always visible and clickable on entry — on a
