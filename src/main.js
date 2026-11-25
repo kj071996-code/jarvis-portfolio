@@ -256,6 +256,8 @@ function clearHover() {
   container.classList.remove('pointing')
   renderer.domElement.style.cursor = ''
   container.style.cursor = ''
+  document.documentElement.style.cursor = ''
+  document.body.style.cursor = ''
 }
 
 function openProject(project) {
@@ -475,9 +477,13 @@ function updateHover(e) {
     world.setHovered(rec)
     container.classList.toggle('pointing', !!rec)
     // set the cursor directly on the canvas too — the CSS class alone did
-    // not change it in the step-12 browser check
-    renderer.domElement.style.cursor = rec ? 'pointer' : ''
-    container.style.cursor = rec ? 'pointer' : ''
+    // not change it in the step-12 browser check. Set it on the document
+    // element and body as well, so no ancestor's cursor can override it.
+    const cur = rec ? 'pointer' : ''
+    renderer.domElement.style.cursor = cur
+    container.style.cursor = cur
+    document.documentElement.style.cursor = cur
+    document.body.style.cursor = cur
   }
 }
 window.addEventListener('pointermove', updateHover)

@@ -350,12 +350,24 @@ export function createWorld(config, reducedMotion) {
     const label = makeLabelSprite(project.label, project.beaconColor)
     label.position.y = 9.8
 
-    bGroup.add(outer, core, ring, glow, label)
+    // Fat invisible hit proxy — the visible pillar is a thin open cylinder
+    // (radius ~0.5) that the raycaster kept missing on hover, while the
+    // label sprite (a big flat quad) always hit. A 1.5-radius transparent
+    // cylinder makes the hover target forgiving: the mouse only has to be
+    // near the beacon, not exactly on its thin wall. Opacity 0 so it
+    // renders nothing; visible: true so the raycaster still tests it.
+    const hitProxy = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5, 1.5, 10, 8),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+    )
+    hitProxy.position.y = 5
+
+    bGroup.add(outer, core, ring, glow, label, hitProxy)
     bGroup.position.set(bx, 0, bz)
     group.add(bGroup)
     const rec = { project, group: bGroup, outer, core, ring, glow, label, phase: Math.random() * Math.PI * 2 }
-    for (const m of [outer, core, ring, glow, label]) m.userData.beacon = rec
-    hitMeshes.push(outer, core, ring, glow, label)
+    for (const m of [outer, core, ring, glow, label, hitProxy]) m.userData.beacon = rec
+    hitMeshes.push(outer, core, ring, glow, label, hitProxy)
     beacons.push(rec)
   }
 
@@ -387,11 +399,14 @@ export function createWorld(config, reducedMotion) {
       b.hover = (b.hover || 0) + ((b === hovered ? 1 : 0) - (b.hover || 0)) * k
       const h = b.hover
       const pulse = 0.3 + 0.07 * Math.sin(time * 1.8 + b.phase)
-      b.outer.material.opacity = pulse + 0.45 * h
+      // hover brightening is deliberately dramatic now (outer to ~1.0, label
+      // 1.35x, glow +0.5) — the earlier +0.45 / 1.15x was too subtle to read
+      // in a screenshot, so the check kept reporting "no brightening".
+      b.outer.material.opacity = pulse + 0.7 * h
       b.core.material.opacity = 0.8 + 0.15 * Math.sin(time * 1.8 + b.phase)
-      b.label.position.y = 9.8 + Math.sin(time * 0.9 + b.phase) * 0.25 + 0.6 * h
-      b.label.scale.set(9 * (1 + 0.15 * h), 2.2 * (1 + 0.15 * h), 1)
-      b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase) + 0.3 * h
+      b.label.position.y = 9.8 + Math.sin(time * 0.9 + b.phase) * 0.25 + 0.9 * h
+      b.label.scale.set(9 * (1 + 0.35 * h), 2.2 * (1 + 0.35 * h), 1)
+      b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase) + 0.5 * h
     }
 
     // avatar gentle bob — a smooth sine, not |sin| (whose cusp at the bottom
