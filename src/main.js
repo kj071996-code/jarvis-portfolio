@@ -59,9 +59,14 @@ outro.group.visible = false
 
 // ── State ──────────────────────────────────────────────────────────────────
 let state = 'loading' // loading | intro | world | project | outro
-let activeBeacon = null
 let returnSpot = null // { pos, heading } — where we re-enter the world
 let projectCleanup = null
+// Click-to-open: the beacon under the pointer when it went down (confirmed
+// as a tap on pointerup), and the spot to return to, captured at click time.
+let clickedBeacon = null
+let clickedAt = null // { x, y } pointerdown position, for the tap-vs-drag check
+let pendingReturnSpot = null
+let flyLookAt = null // Vector3 the camera looks at during a fly-to (else the avatar)
 
 const avatarPos = new THREE.Vector3(...CONFIG.world.avatar.start)
 let avatarHeading = Math.PI // facing the horizon light
@@ -78,7 +83,6 @@ const moveVel = new THREE.Vector2(0, 0) // current velocity, world space (x, z)
 let cameraHeld = false
 // Cached HUD strings — the DOM is only touched when the text actually
 // changes, instead of writing textContent every frame (layout thrash).
-let lastPromptText = ''
 let lastNearestText = ''
 
 // Ease an angle toward a target along the shortest arc (frame-rate independent).
@@ -101,7 +105,7 @@ function startIntro() {
   camera.lookAt(0, 0, 0)
 
   const tw = runTypewriter(CONFIG, $('intro-caption'), () => finishIntro())
-  $('skip-intro').addEventListener('click', () => { tw.cancel(); finishIntro() }, { once: true })
+  $('skip-intro').addEventListener('click', () => { tw.cancel(); skipIntroNow() }, { once: true })
 }
 
 let introFinished = false
@@ -116,8 +120,19 @@ function finishIntro() {
   })
 }
 
+// Skip cuts straight to the world — no 1.1s ring collapse, no 1.8s camera
+// drop. The camera is placed directly at the follow position.
+function skipIntroNow() {
+  if (introFinished) return
+  introFinished = true
+  hide('skip-intro')
+  hide('intro-caption')
+  intro.group.visible = false
+  enterWorld(true, true)
+}
+
 // ── Scene 2 · The world ────────────────────────────────────────────────────
-function enterWorld(firstTime = false) {
+function enterWorld(firstTime = false, instant = false) {
   state = 'world'
   world.group.visible = true
   outro.group.visible = false
@@ -151,6 +166,16 @@ function enterWorld(firstTime = false) {
     // points straight down — which is why the view settled looking down and
     // the sky, horizon glow and beacon labels left the frame.
     const settleYaw = avatarHeading + Math.PI
+    if (instant) {
+      // skip-intro: place the camera straight at the follow position.
+      camera.position.set(
+        avatarPos.x + Math.sin(settleYaw) * CONFIG.world.camera.distance,
+        CONFIG.world.camera.height,
+        avatarPos.z + Math.cos(settleYaw) * CONFIG.world.camera.distance,
+      )
+      camera.lookAt(avatarPos.x, CONFIG.world.camera.lookHeight, avatarPos.z)
+      return
+    }
     camera.position.set(avatarPos.x, 26, avatarPos.z + 34)
     camera.lookAt(avatarPos.x, 0, avatarPos.z - 10)
     cameraHeld = true
@@ -166,36 +191,108 @@ function enterWorld(firstTime = false) {
 }
 
 // ── Scene 3 · Project screens ──────────────────────────────────────────────
+// Fly the camera to a clicked beacon, then open its dashboard. The camera
+// approaches from the avatar's side, slightly above, looking at the pillar
+// mid-height — close enough that the pillar and its label fill the frame.
+function flyToBeacon(beacon) {
+  if (state !== 'world') return
+  // capture the return spot now — the avatar may drift during the fly
+  pendingReturnSpot = { pos: avatarPos.clone(), heading: avatarHeading, camYaw }
+  const bp = beacon.group.position
+  const dx = avatarPos.x - bp.x
+  const dz = avatarPos.z - bp.z
+  const dl = Math.hypot(dx, dz) || 1
+  flyLookAt = new THREE.Vector3(bp.x, 5, bp.z)
+  cameraHeld = true
+  gsap.to(camera.position, {
+    x: bp.x + (dx / dl) * 12,
+    y: 7.5,
+    z: bp.z + (dz / dl) * 12,
+    duration: 1.0, ease: 'power2.inOut',
+    onComplete: () => {
+      cameraHeld = false
+      flyLookAt = null
+      openProject(beacon.project)
+    },
+  })
+}
+
 function openProject(project) {
   state = 'project'
-  returnSpot = { pos: avatarPos.clone(), heading: avatarHeading, camYaw }
-  // the avatar stops when a dashboard opens — no stale velocity or lean
+  // The return spot is captured when the beacon is clicked (so walking
+  // during the fly-to does not move it); fall back to the current spot.
+  returnSpot = pendingReturnSpot || { pos: avatarPos.clone(), heading: avatarHeading, camYaw }
+  pendingReturnSpot = null
+  // the avatar stops when a dashboard opens — no stale velocity, lean or
+  // tap-to-walk target carrying across states
   moveVel.set(0, 0)
+  walkTarget = null
   world.avatar.rotation.x = 0
   hide('hud')
   hide('hint')
-  hide('prompt')
   hide('nearest')
   hide('joystick')
 
   const overlay = $('project-overlay')
   overlay.innerHTML = ''
-  const node = renderProject(project, closeProject)
+  const node = renderProject(project, closeProject, switchProject)
   overlay.appendChild(node)
   overlay.classList.remove('hidden')
   gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.7, ease: 'power1.out' })
   overlay.scrollTop = 0
 }
 
+// Switch to another group's dashboard from inside the overlay: crossfade
+// the content in place (no camera move — the camera stays where the fly-to
+// left it; Back to the world flies it back out).
+function switchProject(project) {
+  const overlay = $('project-overlay')
+  const old = overlay.firstChild
+  gsap.to(overlay, {
+    opacity: 0, duration: 0.25, ease: 'power1.in',
+    onComplete: () => {
+      if (old && old._cleanup) old._cleanup()
+      overlay.innerHTML = ''
+      const node = renderProject(project, closeProject, switchProject)
+      overlay.appendChild(node)
+      overlay.scrollTop = 0
+      gsap.to(overlay, { opacity: 1, duration: 0.4, ease: 'power1.out' })
+    },
+  })
+}
+
 function closeProject() {
   const overlay = $('project-overlay')
   const node = overlay.firstChild
+  // Fade the dashboard out, and fly the camera back to the follow position
+  // at the same time, sweeping its gaze from the beacon back to the avatar
+  // as it goes. The follow lerp stays out while the tween owns the camera.
   gsap.to(overlay, {
     opacity: 0, duration: 0.5, ease: 'power1.in',
     onComplete: () => {
       overlay.classList.add('hidden')
       overlay.innerHTML = ''
       if (node && node._cleanup) node._cleanup()
+    },
+  })
+  cameraHeld = true
+  const lookPoint = new THREE.Vector3()
+  const dir = new THREE.Vector3()
+  camera.getWorldDirection(dir)
+  lookPoint.copy(camera.position).addScaledVector(dir, 12)
+  const lookTarget = new THREE.Vector3(avatarPos.x, CONFIG.world.camera.lookHeight, avatarPos.z)
+  gsap.to(lookPoint, {
+    x: lookTarget.x, y: lookTarget.y, z: lookTarget.z,
+    duration: 0.9, ease: 'power2.inOut',
+    onUpdate: () => camera.lookAt(lookPoint),
+  })
+  gsap.to(camera.position, {
+    x: avatarPos.x + Math.sin(camYaw) * CONFIG.world.camera.distance,
+    y: CONFIG.world.camera.height,
+    z: avatarPos.z + Math.cos(camYaw) * CONFIG.world.camera.distance,
+    duration: 0.9, ease: 'power2.inOut',
+    onComplete: () => {
+      cameraHeld = false
       enterWorld(false) // back to the exact same spot
     },
   })
@@ -205,9 +302,11 @@ function closeProject() {
 function leaveWorld() {
   if (state !== 'world') return
   state = 'outro'
+  // save the spot now — returnSpot was only set when a dashboard opened,
+  // so leaving without opening one used to reset the avatar to spawn.
+  returnSpot = { pos: avatarPos.clone(), heading: avatarHeading, camYaw }
   hide('hud')
   hide('hint')
-  hide('prompt')
   hide('nearest')
   hide('joystick')
   world.group.visible = false
@@ -244,7 +343,6 @@ function returnToWorld() {
 
 // ── Input: keyboard ────────────────────────────────────────────────────────
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && state === 'world' && activeBeacon) { openProject(activeBeacon.project); return }
   if (e.key === 'Escape' && state === 'outro') return // browser exits fullscreen; hint explains it
   keys.add(e.key.toLowerCase())
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(e.key.toLowerCase())) e.preventDefault()
@@ -276,16 +374,30 @@ joy.addEventListener('pointerup', () => {
   knob.style.transform = 'translate(-50%, -50%)'
 })
 
-// ── Input: tap-to-walk ─────────────────────────────────────────────────────
+// ── Input: click / tap a beacon to open it (no walking required) ──────────
+// On pointerdown we raycast the beacons; if one is hit we remember it (and
+// do NOT start a tap-to-walk). On pointerup, if the pointer barely moved,
+// it was a tap/click, so we fly to that beacon and open it. Clicking empty
+// space does nothing; a touch tap on empty ground still walks there.
 const raycaster = new THREE.Raycaster()
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
-renderer.domElement.addEventListener('pointerdown', (e) => {
-  if (state !== 'world' || e.pointerType === 'mouse') return
-  const ndc = new THREE.Vector2(
+function pointerNdc(e) {
+  return new THREE.Vector2(
     (e.clientX / window.innerWidth) * 2 - 1,
     -(e.clientY / window.innerHeight) * 2 + 1,
   )
-  raycaster.setFromCamera(ndc, camera)
+}
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (state !== 'world') return
+  clickedAt = { x: e.clientX, y: e.clientY }
+  clickedBeacon = null
+  raycaster.setFromCamera(pointerNdc(e), camera)
+  const hits = raycaster.intersectObjects(world.hitMeshes, false)
+  if (hits.length > 0 && hits[0].object.userData.beacon) {
+    clickedBeacon = hits[0].object.userData.beacon
+    return // a beacon tap — do not start a tap-to-walk
+  }
+  if (e.pointerType === 'mouse') return // mouse clicks on empty space do nothing
   const hit = new THREE.Vector3()
   if (raycaster.ray.intersectPlane(groundPlane, hit)) {
     walkTarget = hit
@@ -293,11 +405,18 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
     walkTarget.z = THREE.MathUtils.clamp(walkTarget.z, -CONFIG.world.bounds, CONFIG.world.bounds)
   }
 })
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!clickedBeacon || !clickedAt) { clickedBeacon = null; clickedAt = null; return }
+  const moved = Math.hypot(e.clientX - clickedAt.x, e.clientY - clickedAt.y)
+  const beacon = clickedBeacon
+  clickedBeacon = null
+  clickedAt = null
+  if (state === 'world' && moved < 10) flyToBeacon(beacon)
+})
 
 // ── Buttons ────────────────────────────────────────────────────────────────
 $('leave-btn').addEventListener('click', leaveWorld)
 $('return-world').addEventListener('click', returnToWorld)
-$('prompt').addEventListener('click', () => { if (activeBeacon) openProject(activeBeacon.project) })
 
 // ── Movement + camera ──────────────────────────────────────────────────────
 const tmpV = new THREE.Vector3()
@@ -371,33 +490,21 @@ function updateWorld(dt, time) {
     camera.position.y += (CONFIG.world.camera.height - camera.position.y) * lerpK
     camera.position.z += (cz - camera.position.z) * lerpK
   }
-  camera.lookAt(avatarPos.x, CONFIG.world.camera.lookHeight, avatarPos.z)
+  if (flyLookAt) camera.lookAt(flyLookAt)
+  else camera.lookAt(avatarPos.x, CONFIG.world.camera.lookHeight, avatarPos.z)
 
-  // beacon proximity → "Enter" prompt
+  // nearest beacon (for the readout) — no proximity gate; beacons open by
+  // click, so there is no "Enter" prompt any more.
   let nearest = null
   let nearestDist = Infinity
   for (const b of world.beacons) {
     const d = Math.hypot(avatarPos.x - b.group.position.x, avatarPos.z - b.group.position.z)
     if (d < nearestDist) { nearestDist = d; nearest = b }
   }
-  activeBeacon = nearest && nearestDist < CONFIG.world.enterDistance ? nearest : null
-  // Only touch the DOM when the prompt text actually changes — writing
-  // textContent every frame is layout thrash that drags the frame rate.
-  const promptText = activeBeacon ? `open ${activeBeacon.project.label}` : ''
-  if (promptText !== lastPromptText) {
-    lastPromptText = promptText
-    if (promptText) {
-      $('prompt-text').textContent = promptText
-      show('prompt')
-    } else {
-      hide('prompt')
-    }
-  }
 
   // nearest-station readout — always a visible destination while in the world.
-  // Hidden when the "open …" prompt is showing (it already says what to do).
   let nearestText = ''
-  if (!activeBeacon && nearest) {
+  if (nearest) {
     // bearing of the beacon relative to where the camera is looking
     camera.getWorldDirection(tmpFwd)
     const dx = nearest.group.position.x - avatarPos.x

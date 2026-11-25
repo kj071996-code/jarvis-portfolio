@@ -135,7 +135,7 @@ export function createWorld(config, reducedMotion) {
         vGlow = exp(-d * 0.18);
         vec4 mv = modelViewMatrix * vec4(pos.x, y, pos.z, 1.0);
         vDist = -mv.z;
-        gl_PointSize = (2.0 + vH * 2.2) * uPixelRatio * (90.0 / max(1.0, -mv.z));
+        gl_PointSize = min((2.0 + vH * 2.2) * uPixelRatio * (90.0 / max(1.0, -mv.z)), 48.0 * uPixelRatio);
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -281,7 +281,11 @@ export function createWorld(config, reducedMotion) {
   group.add(avatar)
 
   // ── Beacons (one glowing pillar per project) ────────────────────────────
+  // Clickable: every beacon mesh carries userData.beacon so the main loop
+  // can raycast a click/tap against it. hitMeshes is the flat list the
+  // raycaster tests.
   const beacons = []
+  const hitMeshes = []
   for (const project of config.projects) {
     const bGroup = new THREE.Group()
     const color = new THREE.Color(project.beaconColor)
@@ -326,7 +330,10 @@ export function createWorld(config, reducedMotion) {
     bGroup.add(outer, core, ring, glow, label)
     bGroup.position.set(bx, 0, bz)
     group.add(bGroup)
-    beacons.push({ project, group: bGroup, outer, core, ring, glow, label, phase: Math.random() * Math.PI * 2 })
+    const rec = { project, group: bGroup, outer, core, ring, glow, label, phase: Math.random() * Math.PI * 2 }
+    for (const m of [outer, core, ring, glow, label]) m.userData.beacon = rec
+    hitMeshes.push(outer, core, ring, glow, label)
+    beacons.push(rec)
   }
 
   // ── Update loop ─────────────────────────────────────────────────────────
@@ -365,5 +372,5 @@ export function createWorld(config, reducedMotion) {
     group.clear()
   }
 
-  return { group, update, setPixelRatio, dispose, beacons, avatar }
+  return { group, update, setPixelRatio, dispose, beacons, hitMeshes, avatar }
 }

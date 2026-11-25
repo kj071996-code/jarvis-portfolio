@@ -64,9 +64,14 @@ body {
   font-weight: 300;
   line-height: 2.1;
   letter-spacing: 0.04em;
-  color: rgba(232, 232, 234, 0.82);
+  color: rgba(232, 232, 234, 0.92);
   text-shadow: 0 0 18px rgba(255, 179, 71, 0.25);
+  /* dark backing so the bright ring bars behind it cannot wash the text out */
+  background: rgba(3, 3, 8, 0.72);
+  padding: 14px 20px;
+  border-radius: 12px;
   pointer-events: none;
+  z-index: 12;
 }
 #intro-caption .caret::after {
   content: '▍';
@@ -97,22 +102,6 @@ body {
   background: rgba(3,3,8,0.65); padding: 6px 12px; border-radius: 999px;
   white-space: nowrap; pointer-events: none; z-index: 10;
 }
-#prompt {
-  position: absolute; left: 50%; bottom: 22vh; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 12px;
-  font-size: 13px; letter-spacing: 0.1em; text-transform: lowercase; color: var(--ink);
-  background: rgba(10, 10, 16, 0.66); border: 1px solid var(--border-strong);
-  border-radius: 999px; padding: 10px 20px 10px 12px;
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  cursor: pointer; animation: prompt-in 0.5s ease both;
-}
-@keyframes prompt-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
-#prompt-key {
-  font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em;
-  border: 1px solid var(--border-strong); border-radius: 6px; padding: 5px 9px;
-  color: var(--amber);
-}
-
 /* ── Virtual joystick ────────────────────────────────────────────────────── */
 #joystick {
   position: absolute; left: 22px; bottom: 26px; z-index: 11;
@@ -131,9 +120,14 @@ body {
 }
 
 /* ── Outro ───────────────────────────────────────────────────────────────── */
+#vortex-flash {
+  position: absolute; inset: 0; z-index: 14;
+  background: #fff; opacity: 0; pointer-events: none;
+}
 #vortex-hint {
   position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
-  font-size: 11px; letter-spacing: 0.16em; text-transform: lowercase; color: var(--muted);
+  font-size: 12px; letter-spacing: 0.16em; text-transform: lowercase; color: var(--ink);
+  background: rgba(3, 3, 8, 0.65); padding: 6px 14px; border-radius: 999px;
   z-index: 11; pointer-events: none; white-space: nowrap;
 }
 #return-world { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 11; }
@@ -175,91 +169,44 @@ body {
 .muted { color: var(--muted); }
 .small { font-size: 12px; line-height: 1.7; }
 
-/* ── Trading Bots ────────────────────────────────────────────────────────── */
-.trading-grid { display: grid; grid-template-columns: 1.15fr 0.85fr 1.4fr; gap: 14px; margin-bottom: 14px; }
-.balance { font-size: 38px; font-weight: 300; letter-spacing: -0.02em; margin: 2px 0 16px; }
-.balance small { font-size: 15px; color: var(--muted); margin-left: 2px; }
-.btn-teal {
-  display: inline-block; font-family: inherit; font-size: 13px; font-weight: 500;
-  color: #04211d; background: var(--teal-bright); border: none; border-radius: 8px;
-  padding: 11px 18px; cursor: pointer; transition: filter 0.2s, background 0.2s;
-}
-.btn-teal:hover { filter: brightness(1.1); }
-.btn-teal.running { background: var(--amber); }
-.secure-list { list-style: none; }
-.secure-list li { font-size: 12.5px; color: var(--muted); line-height: 2.1; padding-left: 18px; position: relative; }
-.secure-list li::before { content: ''; position: absolute; left: 0; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
-.bot-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); font-size: 13px; }
-.bot-row:first-of-type { border-top: none; }
-.bot-row .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.dot.live { background: var(--teal-bright); box-shadow: 0 0 8px var(--teal-bright); }
-.dot.paused { background: var(--amber); }
-.dot.idle { background: var(--faint); }
-.bot-row .name { font-weight: 400; }
-.bot-row .pair { color: var(--faint); font-size: 11.5px; }
-.bot-row .pnl { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-.pos { color: var(--teal-bright); } .neg { color: #f87171; }
-.panels { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-.spark { width: 100%; height: 74px; display: block; margin-top: 6px; }
-.eq-change { font-size: 12px; color: var(--teal-bright); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
-table.rows { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-table.rows th { text-align: left; font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); padding: 0 0 8px; }
-table.rows td { padding: 8px 0; border-top: 1px solid var(--border); color: var(--muted); }
-table.rows td:first-child { color: var(--ink); font-weight: 400; }
-table.rows td:last-child { text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-.side { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
-.side.long, .side.buy { color: var(--teal-bright); background: rgba(45, 212, 191, 0.1); }
-.side.short, .side.sell { color: #f87171; background: rgba(248, 113, 113, 0.1); }
-.live-note { font-size: 11px; color: var(--amber); letter-spacing: 0.1em; text-transform: lowercase; margin-top: 10px; }
-
-/* ── Speaking Coach ──────────────────────────────────────────────────────── */
-.speaking { background: linear-gradient(180deg, #06110b 0%, #030308 70%); }
-.speaking .card { background: rgba(10, 26, 18, 0.55); border-color: rgba(52, 211, 153, 0.14); }
-.speaking .eyebrow { color: rgba(52, 211, 153, 0.6); }
-.tabs { display: flex; gap: 6px; margin-bottom: 20px; }
-.tab {
+/* ── Agent Group dashboard ─────────────────────────────────────────────── */
+.team-headline { font-size: 17px; font-weight: 400; letter-spacing: 0.01em; margin: 2px 0 8px; }
+.group-desc { font-size: 14px; line-height: 1.7; color: var(--muted); margin-bottom: 20px; max-width: 720px; }
+.group-switch { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.group-tab {
   font-family: inherit; font-size: 12.5px; letter-spacing: 0.06em;
-  color: var(--muted); background: transparent; border: 1px solid transparent;
-  border-radius: 999px; padding: 8px 18px; cursor: pointer;
+  color: var(--muted); background: transparent; border: 1px solid var(--border-strong);
+  border-radius: 999px; padding: 8px 16px; cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
 }
-.tab.active { color: var(--ink); background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.3); }
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
-.stat .value { font-size: 30px; font-weight: 300; margin: 4px 0 2px; }
-.stat .sub { font-size: 11px; color: var(--faint); }
-.coach-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-bottom: 14px; }
-.empty-chart {
-  height: 190px; display: flex; align-items: center; justify-content: center; text-align: center;
-  border: 1px dashed rgba(255, 255, 255, 0.12); border-radius: 8px;
-  color: var(--faint); font-size: 13px; padding: 0 24px; line-height: 1.8;
+.group-tab:hover { color: var(--ink); border-color: rgba(255, 255, 255, 0.3); }
+.group-tab.active {
+  color: var(--ink);
+  border-color: var(--group, rgba(255, 255, 255, 0.4));
+  background: color-mix(in srgb, var(--group, #888) 14%, transparent);
 }
-.radar-wrap { display: flex; justify-content: center; }
-.radar-wrap svg { width: min(280px, 100%); height: auto; }
-.drill-box { margin-top: 14px; }
-.drill-prompt { font-size: 15px; line-height: 1.7; margin: 8px 0 14px; }
-.btn-green {
-  display: inline-block; font-family: inherit; font-size: 13px; font-weight: 500;
-  color: #04150d; background: var(--green); border: none; border-radius: 8px;
-  padding: 11px 18px; cursor: pointer;
+.agent-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+.agent-card { display: flex; flex-direction: column; gap: 8px; }
+.agent-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.agent-name { font-size: 15px; font-weight: 500; }
+.agent-status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10.5px; letter-spacing: 0.12em; text-transform: lowercase; color: var(--muted);
+  flex-shrink: 0;
 }
-.btn-green:hover { filter: brightness(1.1); }
-.btn-green:disabled { opacity: 0.5; cursor: default; }
-.shine-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.shine-grid ul { list-style: none; }
-.shine-grid li { font-size: 13px; color: var(--muted); line-height: 1.8; padding: 8px 0 8px 20px; position: relative; border-top: 1px solid var(--border); }
-.shine-grid li:first-child { border-top: none; }
-.shine-grid li::before { content: ''; position: absolute; left: 2px; top: 17px; width: 6px; height: 6px; border-radius: 50%; }
-.shine-grid .good li::before { background: var(--green); }
-.shine-grid .work li::before { background: var(--amber); }
-.session-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 13px; }
-.session-row:first-of-type { border-top: none; }
-.session-row .date { color: var(--faint); font-size: 11.5px; }
-.session-row .grade { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--green); }
+.agent-status .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot.ready { background: var(--group, #2dd4bf); box-shadow: 0 0 8px var(--group, #2dd4bf); }
+.agent-role { font-size: 13px; line-height: 1.7; color: var(--muted); }
+.team-note {
+  font-size: 12px; letter-spacing: 0.08em; text-transform: lowercase; color: var(--muted);
+  border-top: 1px solid var(--border); padding-top: 16px;
+}
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
-  .trading-grid, .panels { grid-template-columns: 1fr; }
-  .stat-grid { grid-template-columns: 1fr 1fr; }
-  .coach-grid, .shine-grid { grid-template-columns: 1fr; }
+  .agent-grid { grid-template-columns: 1fr; }
+  .group-switch { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .group-tab { flex-shrink: 0; }
   #intro-caption { bottom: 14vh; font-size: 12px; }
   #hint { display: none; }
   .project { padding-top: 20px; }

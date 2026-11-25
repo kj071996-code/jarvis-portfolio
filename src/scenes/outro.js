@@ -5,12 +5,31 @@
 import * as THREE from 'three'
 import gsap from 'gsap'
 
+// Soft round dot texture — the starburst points render as glowing discs,
+// not the dim grey squares a bare PointsMaterial draws.
+function makeDotTexture() {
+  const c = document.createElement('canvas')
+  c.width = 64
+  c.height = 64
+  const ctx = c.getContext('2d')
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.4, 'rgba(255,255,255,0.7)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 64, 64)
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+
 export function createOutro(config, reducedMotion) {
   const group = new THREE.Group()
   const strandsPerArm = config.outro.strands
   const turns = config.outro.turns
   const R = 16
   const depth = 6
+  const dotTex = makeDotTexture()
 
   // Two interlocking spiral arms, built as line segments.
   const positions = new Float32Array(strandsPerArm * 2 * 2 * 3)
@@ -35,15 +54,16 @@ export function createOutro(config, reducedMotion) {
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   const mat = new THREE.LineBasicMaterial({
-    color: 0xffffff, transparent: true, opacity: 0.85,
+    color: 0xffffff, transparent: true, opacity: 1.0,
     blending: THREE.AdditiveBlending, depthWrite: false,
   })
   const strands = new THREE.LineSegments(geo, mat)
   strands.frustumCulled = false
   group.add(strands)
 
-  // Starburst at the centre — hidden until the dive ends.
-  const burstCount = 900
+  // Starburst at the centre — hidden until the dive ends. Round glowing
+  // discs (dot texture), not bare squares, so it reads as a bright burst.
+  const burstCount = config.outro.burstCount || 1400
   const burstPos = new Float32Array(burstCount * 3)
   for (let i = 0; i < burstCount; i++) {
     const dir = new THREE.Vector3().randomDirection()
@@ -55,13 +75,25 @@ export function createOutro(config, reducedMotion) {
   const burstGeo = new THREE.BufferGeometry()
   burstGeo.setAttribute('position', new THREE.BufferAttribute(burstPos, 3))
   const burstMat = new THREE.PointsMaterial({
-    color: 0xffffff, size: 0.16, transparent: true, opacity: 0,
+    color: 0xffffff, size: config.outro.burstSize || 0.35, map: dotTex,
+    transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
   })
   const burst = new THREE.Points(burstGeo, burstMat)
   burst.frustumCulled = false
   burst.scale.setScalar(0.1)
   group.add(burst)
+
+  // White core glow — fades in as the camera dives so the vortex centre
+  // blazes white instead of reading as black with white rings.
+  const glowMat = new THREE.SpriteMaterial({
+    map: dotTex, color: 0xffffff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  })
+  const glow = new THREE.Sprite(glowMat)
+  glow.scale.set(8, 8, 1)
+  glow.frustumCulled = false
+  group.add(glow)
 
   let spinSpeed = reducedMotion ? 0.4 : 2.2
   let diving = false
@@ -71,16 +103,29 @@ export function createOutro(config, reducedMotion) {
     if (diving) spinSpeed = Math.min(spinSpeed + dt * 3.5, 9)
   }
 
-  // Camera dive: spiral tightens, then the starburst flashes.
+  // Camera dive: spiral tightens, core blazes white, then the starburst flashes.
   function dive(camera, onDone) {
     diving = true
     const tl = gsap.timeline({ onComplete: onDone })
     tl.to(camera.position, { z: 5.5, duration: 2.1, ease: 'power2.in' }, 0)
       .to(group.scale, { x: 0.55, y: 0.55, z: 0.55, duration: 2.1, ease: 'power2.in' }, 0)
-      .to(burst.scale, { x: 3.2, y: 3.2, z: 3.2, duration: 0.9, ease: 'power3.out' }, 1.9)
-      .to(burstMat, { opacity: 1, duration: 0.35, ease: 'power1.out' }, 1.9)
-      .to(burstMat, { opacity: 0, duration: 1.1, ease: 'power1.out' }, 2.5)
-      .to(mat, { opacity: 0.25, duration: 1.0, ease: 'power1.out' }, 2.2)
+      // core glow builds as the camera closes in
+      .to(glowMat, { opacity: 0.9, duration: 1.6, ease: 'power1.in' }, 0.6)
+      .to(glow.scale, { x: 42, y: 42, z: 42, duration: 2.0, ease: 'power2.in' }, 0.6)
+      // starburst: discs fly out and flash, then fade
+      .to(burst.scale, { x: 4, y: 4, z: 4, duration: 0.9, ease: 'power3.out' }, 1.9)
+      .to(burstMat, { opacity: 1, duration: 0.3, ease: 'power1.out' }, 1.9)
+      .to(burstMat, { opacity: 0, duration: 1.2, ease: 'power1.out' }, 2.5)
+      // strands stay bright (they used to dim to 0.25, which is why the
+      // vortex read as black with white rings); the glow fades last
+      .to(mat, { opacity: 0.7, duration: 1.0, ease: 'power1.out' }, 2.2)
+      .to(glowMat, { opacity: 0, duration: 0.8, ease: 'power1.out' }, 2.6)
+    // full-screen white flash at the starburst peak (DOM overlay, if present)
+    const flash = document.getElementById('vortex-flash')
+    if (flash) {
+      tl.to(flash, { opacity: 0.7, duration: 0.15, ease: 'power1.in' }, 1.9)
+        .to(flash, { opacity: 0, duration: 0.9, ease: 'power1.out' }, 2.05)
+    }
     return tl
   }
 
@@ -89,9 +134,13 @@ export function createOutro(config, reducedMotion) {
     spinSpeed = reducedMotion ? 0.4 : 2.2
     group.scale.setScalar(1)
     group.rotation.z = 0
-    mat.opacity = 0.85
+    mat.opacity = 1.0
     burst.scale.setScalar(0.1)
     burstMat.opacity = 0
+    glowMat.opacity = 0
+    glow.scale.set(8, 8, 1)
+    const flash = document.getElementById('vortex-flash')
+    if (flash) flash.style.opacity = 0
   }
 
   function dispose() {

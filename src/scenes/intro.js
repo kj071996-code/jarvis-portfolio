@@ -108,12 +108,18 @@ export function createIntro(config, reducedMotion) {
 
 // ── Typewriter caption ─────────────────────────────────────────────────────
 // Streams config.intro.lines one by one into #intro-caption.
+//
+// Time-based, not tick-count-based: each tick works out how many characters
+// should be visible from the wall-clock time since the line started, so the
+// text catches up instead of stalling if the main thread is busy (the intro
+// ring's per-frame update can starve setTimeout on slow devices — that is
+// what made the caption take ~45s instead of the ~13s the speed implies).
 export function runTypewriter(config, el, onDone) {
   const lines = config.intro.lines
   const typeSpeed = config.intro.typeSpeedMs
   const linePause = config.intro.linePauseMs
   let lineIdx = 0
-  let charIdx = 0
+  let lineStart = 0 // performance.now() when the current line started
   let cancelled = false
   let timer = null
 
@@ -137,17 +143,21 @@ export function runTypewriter(config, el, onDone) {
 
   function tick() {
     if (cancelled) return
+    const now = performance.now()
+    if (lineStart === 0) lineStart = now
     const line = lines[lineIdx]
     const current = lineEls[lineIdx]
     current.classList.add('caret')
-    if (charIdx <= line.length) {
-      current.textContent = line.slice(0, charIdx)
-      charIdx++
+    // how many chars should be visible by now — delayed ticks jump ahead
+    const chars = Math.floor((now - lineStart) / typeSpeed)
+    if (chars < line.length) {
+      current.textContent = line.slice(0, chars)
       timer = setTimeout(tick, typeSpeed)
     } else {
+      current.textContent = line
       current.classList.remove('caret')
       lineIdx++
-      charIdx = 0
+      lineStart = 0
       if (lineIdx >= lines.length) {
         timer = setTimeout(finish, linePause)
       } else {
