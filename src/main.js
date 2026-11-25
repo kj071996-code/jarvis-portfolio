@@ -33,7 +33,27 @@ scene.background = new THREE.Color(CONFIG.colors.background)
 scene.fog = new THREE.FogExp2(0x030308, 0.0075)
 
 const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 600)
-camera.position.set(0, 0.4, 15)
+// Opens horizontal FOV to ~96° on 16:9 so the whole arc + orbit sway fits at spawn.
+function fitFov() {
+  const aspect = window.innerWidth / window.innerHeight
+  let v = 66
+  if (aspect >= 1) {
+    v = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(48)) / aspect))
+    v = THREE.MathUtils.clamp(v, 58, 66)
+  }
+  camera.fov = v
+  camera.aspect = aspect
+  camera.updateProjectionMatrix()
+}
+// Intro ring: same size as before on desktop; pulls back on portrait phones so it isn't cropped.
+function introZ() {
+  const aspect = window.innerWidth / window.innerHeight
+  const halfTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
+  const target = aspect >= 1 ? 8.3 : 6.8
+  return target / (halfTan * Math.min(1, aspect))
+}
+fitFov()
+camera.position.set(0, 0.4, introZ())
 camera.lookAt(0, 0, 0)
 
 const composer = new EffectComposer(renderer)
@@ -84,6 +104,8 @@ let cameraHeld = false
 // Cached HUD strings — the DOM is only touched when the text actually
 // changes, instead of writing textContent every frame (layout thrash).
 let lastNearestText = ''
+let lastNearId = null // id of the beacon the rail is highlighting as nearest
+let hoveredBeacon = null // beacon record under the mouse (desktop hover)
 
 // Ease an angle toward a target along the shortest arc (frame-rate independent).
 function dampAngle(current, target, lambda, dt) {
@@ -101,7 +123,7 @@ function startIntro() {
   hide('loader')
   show('intro-caption')
   show('skip-intro')
-  camera.position.set(0, 0.4, 15)
+  camera.position.set(0, 0.4, introZ())
   camera.lookAt(0, 0, 0)
 
   const tw = runTypewriter(CONFIG, $('intro-caption'), () => finishIntro())
@@ -141,12 +163,15 @@ function enterWorld(firstTime = false, instant = false) {
   show('hint')
   $('hint').textContent = isMobile ? CONFIG.controls.mobileHint : CONFIG.controls.desktopHint
   if (isMobile) show('joystick')
+  lastNearId = null // rail highlight resets on entry; updateWorld re-derives it
   // Re-show the nearest-station pill on return: it was hidden when a
   // dashboard/outro opened, and the DOM-write cache (lastNearestText) still
   // holds the old string, so updateWorld would skip the write and the pill
   // would stay hidden until the player moves a step. Show it now with the
   // (still correct — same spot) text, and clear the cache so the next frame
-  // refreshes it.
+  // refreshes it. (The cache clear here IS the lastNearestText reset — it
+  // must stay after the show() check, not before it, or the check reads ''
+  // and the pill never re-shows.)
   if (lastNearestText) show('nearest')
   lastNearestText = ''
 
@@ -203,7 +228,7 @@ function enterWorld(firstTime = false, instant = false) {
 // approaches from the avatar's side, slightly above, looking at the pillar
 // mid-height — close enough that the pillar and its label fill the frame.
 function flyToBeacon(beacon) {
-  if (state !== 'world') return
+  if (state !== 'world' || flyLookAt) return
   // capture the return spot now — the avatar may drift during the fly
   pendingReturnSpot = { pos: avatarPos.clone(), heading: avatarHeading, camYaw }
   const bp = beacon.group.position
@@ -225,8 +250,15 @@ function flyToBeacon(beacon) {
   })
 }
 
+function clearHover() {
+  hoveredBeacon = null
+  world.setHovered(null)
+  container.classList.remove('pointing')
+}
+
 function openProject(project) {
   state = 'project'
+  clearHover()
   // The return spot is captured when the beacon is clicked (so walking
   // during the fly-to does not move it); fall back to the current spot.
   returnSpot = pendingReturnSpot || { pos: avatarPos.clone(), heading: avatarHeading, camYaw }
@@ -310,6 +342,7 @@ function closeProject() {
 function leaveWorld() {
   if (state !== 'world') return
   state = 'outro'
+  clearHover()
   // save the spot now — returnSpot was only set when a dashboard opened,
   // so leaving without opening one used to reset the avatar to spawn.
   returnSpot = { pos: avatarPos.clone(), heading: avatarHeading, camYaw }
@@ -421,6 +454,36 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   clickedAt = null
   if (state === 'world' && moved < 10) flyToBeacon(beacon)
 })
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse' || state !== 'world') return
+  raycaster.setFromCamera(pointerNdc(e), camera)
+  const hits = raycaster.intersectObjects(world.hitMeshes, false)
+  const rec = hits.length > 0 ? hits[0].object.userData.beacon : null
+  if (rec !== hoveredBeacon) {
+    hoveredBeacon = rec
+    world.setHovered(rec)
+    container.classList.toggle('pointing', !!rec)
+  }
+})
+
+// ── Station rail ─────────────────────────────────────────────────────────
+// One button per group, always visible and clickable on entry — on a
+// portrait phone only ~3 pillars fit in frame whatever the arc, so the rail
+// carries the first impression on every screen. Hovering a rail button
+// highlights its beacon in the world (desktop); the nearest station is
+// marked .near by updateWorld().
+const railButtons = new Map()
+for (const b of world.beacons) {
+  const btn = document.createElement('button')
+  btn.className = 'station'
+  btn.style.setProperty('--c', b.project.beaconColor)
+  btn.innerHTML = `<span class="sdot"></span>${b.project.label}`
+  btn.addEventListener('click', () => flyToBeacon(b))
+  btn.addEventListener('mouseenter', () => { if (state === 'world') world.setHovered(b) })
+  btn.addEventListener('mouseleave', () => world.setHovered(hoveredBeacon))
+  $('stations').appendChild(btn)
+  railButtons.set(b.project.id, btn)
+}
 
 // ── Buttons ────────────────────────────────────────────────────────────────
 $('leave-btn').addEventListener('click', leaveWorld)
@@ -531,6 +594,13 @@ function updateWorld(dt, time) {
     else if (angle <= -Math.PI / 4) arrow = '▶' // right
     nearestText = `${arrow} nearest station: ${nearest.project.label} · ${Math.round(nearestDist)}m`
   }
+  // mark the nearest station in the rail (only when it changes)
+  const nearId = nearest ? nearest.project.id : null
+  if (nearId !== lastNearId) {
+    if (lastNearId && railButtons.get(lastNearId)) railButtons.get(lastNearId).classList.remove('near')
+    if (nearId && railButtons.get(nearId)) railButtons.get(nearId).classList.add('near')
+    lastNearId = nearId
+  }
   if (nearestText !== lastNearestText) {
     lastNearestText = nearestText
     if (nearestText) {
@@ -550,8 +620,8 @@ function updateWorld(dt, time) {
 
 // ── Resize ─────────────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight
-  camera.updateProjectionMatrix()
+  fitFov()
+  if (state === 'intro') camera.position.z = introZ()
   renderer.setSize(window.innerWidth, window.innerHeight)
   composer.setSize(window.innerWidth, window.innerHeight)
   applyPixelRatio()

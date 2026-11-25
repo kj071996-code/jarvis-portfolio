@@ -22,7 +22,9 @@ function renderGroup(project, onBack, onSwitch) {
   root.style.setProperty('--group', project.beaconColor)
 
   const head = el('div', 'project-head')
-  head.innerHTML = `<div><div class="eyebrow">White Technologies · Agent Team</div><h1>${project.name}</h1></div>`
+  const idx = CONFIG.projects.findIndex((p) => p.id === project.id) + 1
+  const pad = (n) => String(n).padStart(2, '0')
+  head.innerHTML = `<div><div class="eyebrow">white technologies / agent team / <span class="idx">station ${pad(idx)} of ${pad(CONFIG.projects.length)}</span></div><h1>${project.name}</h1></div>`
   const back = el('button', 'pill back-btn', `← ${CONFIG.controls.backLabel}`)
   back.addEventListener('click', onBack)
   head.appendChild(back)
@@ -39,7 +41,8 @@ function renderGroup(project, onBack, onSwitch) {
   // Switcher across all seven groups — clicking one crossfades to it.
   const switcher = el('div', 'group-switch')
   for (const p of CONFIG.projects) {
-    const b = el('button', `group-tab${p.id === project.id ? ' active' : ''}`, p.name)
+    const b = el('button', `group-tab${p.id === project.id ? ' active' : ''}`, `<span class="tdot"></span>${p.name}`)
+    b.style.setProperty('--c', p.beaconColor)
     b.addEventListener('click', () => { if (p.id !== project.id) onSwitch(p) })
     switcher.appendChild(b)
   }
@@ -47,11 +50,11 @@ function renderGroup(project, onBack, onSwitch) {
 
   // The group's six agents.
   const grid = el('div', 'agent-grid')
-  for (const a of project.agents) {
+  project.agents.forEach((a, i) => {
     const card = el('div', 'card agent-card')
-    card.innerHTML = `<div class="agent-top"><span class="agent-name">${a.name}</span><span class="agent-status"><span class="dot ready"></span>${a.status}</span></div><div class="agent-role">${a.role}</div>`
+    card.innerHTML = `<div class="agent-top"><span class="agent-name"><span class="agent-idx">${String(i + 1).padStart(2, '0')}</span>${a.name}</span><span class="agent-status"><span class="dot ready"></span>${a.status}</span></div><div class="agent-role">${a.role}</div>`
     grid.appendChild(card)
-  }
+  })
   body.appendChild(grid)
 
   // Nothing leaves without approval.

@@ -2,6 +2,8 @@
 :root {
   --bg: #030308;
   --bg-alt: #05050a;
+  --navy: #040814;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
   --panel: #0a0f1c;
   --panel-alt: #0e1526;
   --border: rgba(255, 255, 255, 0.08);
@@ -102,6 +104,28 @@ body {
   background: rgba(3,3,8,0.65); padding: 6px 12px; border-radius: 999px;
   white-space: nowrap; pointer-events: none; z-index: 10;
 }
+/* ── Station rail ──────────────────────────────────────────────────────── */
+#stations {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 4px; padding: 4px; z-index: 10; pointer-events: auto;
+  background: rgba(4, 8, 20, 0.62); border: 1px solid var(--border);
+  border-radius: 999px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  max-width: calc(100vw - 480px); overflow-x: auto; scrollbar-width: none;
+}
+@media (max-width: 1100px) { #stations { top: 58px; max-width: calc(100vw - 24px); } }
+#stations::-webkit-scrollbar { display: none; }
+.station {
+  display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0;
+  font-family: inherit; font-size: 11px; letter-spacing: 0.1em; text-transform: lowercase;
+  color: var(--muted); background: transparent; border: 1px solid transparent;
+  border-radius: 999px; padding: 6px 11px; cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.station .sdot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+.station:hover, .station.near { color: var(--ink); border-color: color-mix(in srgb, var(--c) 55%, transparent); }
+.station.near { background: color-mix(in srgb, var(--c) 14%, transparent); }
+#scene.pointing canvas { cursor: pointer; }
+
 /* ── Virtual joystick ────────────────────────────────────────────────────── */
 #joystick {
   position: absolute; left: 22px; bottom: 26px; z-index: 11;
@@ -152,9 +176,15 @@ body {
   background: var(--bg);
   opacity: 0;
 }
-.project { min-height: 100%; padding: 28px clamp(18px, 5vw, 64px) 64px; }
+.project {
+  min-height: 100%; padding: 28px clamp(18px, 5vw, 64px) 64px;
+  background:
+    radial-gradient(1100px 420px at 50% -12%, color-mix(in srgb, var(--group, #3b82f6) 16%, transparent), transparent 70%),
+    var(--navy);
+}
 .project-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; max-width: 1080px; margin: 0 auto 24px; }
-.eyebrow { font-size: 10px; font-weight: 500; letter-spacing: 0.32em; text-transform: uppercase; color: var(--faint); margin-bottom: 10px; }
+.eyebrow { font-family: var(--mono); font-size: 11px; font-weight: 400; letter-spacing: 0.08em; text-transform: lowercase; color: var(--muted); margin-bottom: 12px; }
+.eyebrow .idx { color: var(--group, var(--muted)); }
 .project-head h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 300; letter-spacing: -0.02em; }
 .back-btn { flex-shrink: 0; margin-top: 6px; }
 .project-body { max-width: 1080px; margin: 0 auto; }
@@ -174,11 +204,15 @@ body {
 .group-desc { font-size: 15px; line-height: 1.7; color: var(--muted); margin-bottom: 24px; max-width: 720px; }
 .group-switch { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
 .group-tab {
+  display: inline-flex; align-items: center; gap: 8px;
   font-family: inherit; font-size: 12.5px; letter-spacing: 0.06em;
   color: var(--muted); background: transparent; border: 1px solid var(--border-strong);
   border-radius: 999px; padding: 8px 16px; cursor: pointer;
   transition: color 0.2s, border-color 0.2s, background 0.2s;
 }
+.group-tab .tdot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); opacity: 0.55; }
+.group-tab.active .tdot, .group-tab:hover .tdot { opacity: 1; }
+.agent-idx { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-right: 10px; }
 .group-tab:hover { color: var(--ink); border-color: rgba(255, 255, 255, 0.3); }
 .group-tab.active {
   color: var(--ink);
@@ -192,11 +226,12 @@ body {
 .agent-name { font-size: 16px; font-weight: 500; }
 .agent-status {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 10.5px; letter-spacing: 0.12em; text-transform: lowercase; color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10.5px; letter-spacing: 0.04em; text-transform: lowercase; color: var(--muted);
   flex-shrink: 0;
 }
 .agent-status .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.dot.ready { background: var(--group, #2dd4bf); box-shadow: 0 0 8px var(--group, #2dd4bf); }
+.dot.ready { background: var(--group, #2dd4bf); }
 .agent-role { font-size: 14px; line-height: 1.7; color: var(--muted); }
 .team-note {
   font-size: 12px; letter-spacing: 0.08em; text-transform: lowercase; color: var(--muted);
@@ -208,8 +243,11 @@ body {
   .agent-grid { grid-template-columns: 1fr; }
   .group-switch { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
   .group-tab { flex-shrink: 0; }
-  #intro-caption { bottom: 14vh; font-size: 12px; }
-  #hint { display: none; }
+  #intro-caption { bottom: 12vh; font-size: 13px; line-height: 1.8; padding: 14px 18px; }
+  #stations { top: 56px; left: 12px; right: 12px; transform: none; max-width: none; }
+  #hint { top: 102px; bottom: auto; font-size: 10.5px; }
+  #nearest { display: none; }
+  .agent-card { padding: 20px; }
   .project { padding-top: 20px; }
   .project-head { margin-bottom: 18px; }
 }

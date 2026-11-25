@@ -35,18 +35,16 @@ function makeRadialTexture(inner, outer) {
   return tex
 }
 
-function makeLabelSprite(text, color) {
-  const c = document.createElement('canvas')
-  c.width = 512
-  c.height = 128
-  const ctx = c.getContext('2d')
+// Draws the label (coloured dot + name, centred as one unit on a dark
+// rounded backing) onto a 512×128 canvas context. Split out so the label
+// can be redrawn once Inter has loaded — the first draw happens before
+// Google Fonts delivers it, so it would otherwise render in fallback sans.
+function drawLabel(ctx, text, color) {
   ctx.clearRect(0, 0, 512, 128)
+  ctx.shadowBlur = 0
   ctx.font = '600 44px Inter, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  // The label is a coloured dot (the group's beacon colour) plus the name,
-  // centred as one unit on a dark rounded backing so the white text reads
-  // against bright terrain.
   const tw = ctx.measureText(text.toLowerCase()).width
   const dotR = 11
   const gap = 18
@@ -64,7 +62,7 @@ function makeLabelSprite(text, color) {
   ctx.arcTo(bx, by + bh, bx, by, r)
   ctx.arcTo(bx, by, bx + bw, by, r)
   ctx.closePath()
-  ctx.fillStyle = 'rgba(3,3,8,0.8)'
+  ctx.fillStyle = 'rgba(4,8,20,0.8)'
   ctx.fill()
   const cx = 256 - contentW / 2
   // group-colour dot
@@ -80,11 +78,21 @@ function makeLabelSprite(text, color) {
   ctx.shadowBlur = 22
   ctx.fillStyle = '#ffffff'
   ctx.fillText(text.toLowerCase(), cx + dotR * 2 + gap + tw / 2, 64)
+  ctx.shadowBlur = 0
+}
+
+function makeLabelSprite(text, color) {
+  const c = document.createElement('canvas')
+  c.width = 512
+  c.height = 128
+  const ctx = c.getContext('2d')
+  drawLabel(ctx, text, color)
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })
   const sprite = new THREE.Sprite(mat)
   sprite.scale.set(9, 2.2, 1)
+  sprite.userData.redraw = () => { drawLabel(ctx, text, color); tex.needsUpdate = true }
   return sprite
 }
 
@@ -351,6 +359,19 @@ export function createWorld(config, reducedMotion) {
     beacons.push(rec)
   }
 
+  // Redraw the labels once Inter has loaded — the first draw happens
+  // before Google Fonts delivers it, so they would otherwise stay in the
+  // fallback sans.
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load('600 44px Inter').then(() => {
+      for (const b of beacons) b.label.userData.redraw()
+    }).catch(() => {})
+  }
+
+  // Hover state (desktop): the beacon under the mouse brightens and lifts.
+  let hovered = null
+  function setHovered(rec) { hovered = rec }
+
   // ── Update loop ─────────────────────────────────────────────────────────
   function update(time, dt, avatarPos, avatarHeading) {
     terrainUniforms.uTime.value = time
@@ -361,12 +382,16 @@ export function createWorld(config, reducedMotion) {
     const breathe = 1 + (reducedMotion ? 0 : 0.03 * Math.sin(time * 0.5))
     horizon.scale.set(W.horizonLight.scale[0] * breathe, W.horizonLight.scale[1] * breathe, 1)
 
+    const k = 1 - Math.exp(-dt * 10)
     for (const b of beacons) {
+      b.hover = (b.hover || 0) + ((b === hovered ? 1 : 0) - (b.hover || 0)) * k
+      const h = b.hover
       const pulse = 0.3 + 0.07 * Math.sin(time * 1.8 + b.phase)
-      b.outer.material.opacity = pulse
+      b.outer.material.opacity = pulse + 0.2 * h
       b.core.material.opacity = 0.8 + 0.15 * Math.sin(time * 1.8 + b.phase)
-      b.label.position.y = 9.8 + Math.sin(time * 0.9 + b.phase) * 0.25
-      b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase)
+      b.label.position.y = 9.8 + Math.sin(time * 0.9 + b.phase) * 0.25 + 0.3 * h
+      b.label.scale.set(9 * (1 + 0.08 * h), 2.2 * (1 + 0.08 * h), 1)
+      b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase) + 0.2 * h
     }
 
     // avatar gentle bob — a smooth sine, not |sin| (whose cusp at the bottom
@@ -387,5 +412,5 @@ export function createWorld(config, reducedMotion) {
     group.clear()
   }
 
-  return { group, update, setPixelRatio, dispose, beacons, hitMeshes, avatar }
+  return { group, update, setPixelRatio, dispose, beacons, hitMeshes, avatar, setHovered }
 }

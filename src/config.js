@@ -111,7 +111,9 @@ export const CONFIG = {
   // ── Scene 3 · Agent-group stations ───────────────────────────────────────
   // One beacon per White Technologies marketing agent group. Add a group
   // here and it appears as a beacon in the world. `screen` is 'group' for
-  // all of them — the dashboard lists the group's six agents.
+  // all of them — the dashboard lists the group's six agents. Beacons sit
+  // on a ±50° arc, radius 25 around spawn (0, 26), so all seven are in
+  // frame on entry.
   team: {
     headline: '0 employees. 42 AI agents.',
     note: 'Nothing posts or sends without Keith’s approval.',
@@ -124,7 +126,7 @@ export const CONFIG = {
       tagline: 'Finds what is trending, who the audience is, and what competitors are doing.',
       screen: 'group',
       beaconColor: '#3b82f6',
-      position: [-20.5, 11.7],
+      position: [-19.15, 9.93],
       agents: [
         { name: 'Trend Scout', role: 'Finds what local business and AI agent topics are trending this week.', status: 'ready' },
         { name: 'Audience Listener', role: 'Reads public comments and discussion in local business groups.', status: 'ready' },
@@ -141,7 +143,7 @@ export const CONFIG = {
       tagline: 'Makes the visuals, carousels, voiceover and video — and brand-checks everything before it leaves.',
       screen: 'group',
       beaconColor: '#f97316',
-      position: [-14.7, 5.8],
+      position: [-13.74, 5.11],
       agents: [
         { name: 'Visual Designer', role: 'Designs static social images for White Technologies in the Tri-Cities.', status: 'ready' },
         { name: 'Carousel Builder', role: 'Builds multi-panel carousel posts for Facebook and Instagram.', status: 'ready' },
@@ -158,7 +160,7 @@ export const CONFIG = {
       tagline: 'Measures posts, revenue, calls and email — and feeds what it learns back into the plan.',
       screen: 'group',
       beaconColor: '#14b8a6',
-      position: [-7.7, 2.2],
+      position: [-7.17, 2.05],
       agents: [
         { name: 'Post Analyst', role: 'Measures how each published post and video performed.', status: 'ready' },
         { name: 'Revenue Tracker', role: 'Tracks enquiries, calls booked, and revenue that came from the marketing.', status: 'ready' },
@@ -192,7 +194,7 @@ export const CONFIG = {
       tagline: 'Scores leads, books calls, sends reminders and follow-ups, and keeps the CRM current.',
       screen: 'group',
       beaconColor: '#10b981',
-      position: [7.7, 2.2],
+      position: [7.17, 2.05],
       agents: [
         { name: 'Lead Scorer', role: 'Scores inbound enquiries and local businesses for fit with White Technologies.', status: 'ready' },
         { name: 'Call Booker', role: 'Prepares a call booking for a scored lead.', status: 'ready' },
@@ -209,7 +211,7 @@ export const CONFIG = {
       tagline: 'Replies to comments and DMs, builds the FAQ, asks for reviews, and catches leads.',
       screen: 'group',
       beaconColor: '#f59e0b',
-      position: [14.7, 5.8],
+      position: [13.74, 5.11],
       agents: [
         { name: 'Comment Replier', role: 'Drafts replies to comments on White Technologies posts and in Facebook groups.', status: 'ready' },
         { name: 'DM Agent', role: 'Drafts replies to direct messages from people asking about White Technologies.', status: 'ready' },
@@ -226,7 +228,7 @@ export const CONFIG = {
       tagline: 'Collects and deciphers the numbers — Research finds, Data deciphers.',
       screen: 'group',
       beaconColor: '#06b6d4',
-      position: [20.5, 11.7],
+      position: [19.15, 9.93],
       agents: [
         { name: 'Data Collector', role: 'Gathers raw figures from every channel into one place for the team.', status: 'ready' },
         { name: 'Data Decipherer', role: 'Turns raw figures the team collected into plain-language meaning.', status: 'ready' },

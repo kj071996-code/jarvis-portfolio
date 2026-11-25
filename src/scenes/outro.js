@@ -117,13 +117,15 @@ export function createOutro(config, reducedMotion) {
       .to(burst.scale, { x: 4, y: 4, z: 4, duration: 0.9, ease: 'power3.out' }, 1.9)
       .to(burstMat, { opacity: 1, duration: 0.3, ease: 'power1.out' }, 1.9)
       .to(burstMat, { opacity: 0.5, duration: 1.2, ease: 'power1.out' }, 2.5)
-      // strands stay bright (they used to dim to 0.25, which is why the
-      // vortex read as black with white rings); the core glow settles at a
-      // bright value too instead of fading to 0, so the settled outro stays
-      // a white vortex with a starburst glow rather than a black screen
-      // with white rings
-      .to(mat, { opacity: 0.7, duration: 1.0, ease: 'power1.out' }, 2.2)
-      .to(glowMat, { opacity: 0.65, duration: 0.8, ease: 'power1.out' }, 2.6)
+      // The white dive is the climax; the resting state stays DARK, with a
+      // soft white core still glowing. An all-white rest would wash out the
+      // Esc hint and the return pill and break the dark brand; a core that
+      // fades to 0 reads as "it fell back to black". So the strands stay
+      // bright (0.75) and the glow settles at a soft 0.3, spread wide
+      // (scale 26) instead of blazing at full opacity.
+      .to(mat, { opacity: 0.75, duration: 1.0, ease: 'power1.out' }, 2.2)
+      .to(glowMat, { opacity: 0.3, duration: 1.2, ease: 'power2.out' }, 2.6)
+      .to(glow.scale, { x: 26, y: 26, z: 26, duration: 1.2, ease: 'power2.out' }, 2.6)
     // full-screen white flash at the starburst peak (DOM overlay, if present)
     const flash = document.getElementById('vortex-flash')
     if (flash) {
