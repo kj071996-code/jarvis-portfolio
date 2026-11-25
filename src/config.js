@@ -85,7 +85,7 @@ export const CONFIG = {
       position: [0, 6, -88],
       scale: [120, 32],
       color: '#fff3df',
-      opacity: 0.5,
+      opacity: 0.35,
     },
     beams: 130, // thin vertical light beams
     avatar: {

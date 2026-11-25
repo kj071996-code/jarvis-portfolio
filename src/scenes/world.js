@@ -44,6 +44,23 @@ function makeLabelSprite(text, color) {
   ctx.font = '500 44px Inter, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
+  // dark rounded backing so the white text reads against bright terrain
+  const tw = ctx.measureText(text.toLowerCase()).width
+  const padX = 26
+  const bw = Math.min(512 - 8, tw + padX * 2)
+  const bh = 76
+  const bx = (512 - bw) / 2
+  const by = (128 - bh) / 2
+  const r = 20
+  ctx.beginPath()
+  ctx.moveTo(bx + r, by)
+  ctx.arcTo(bx + bw, by, bx + bw, by + bh, r)
+  ctx.arcTo(bx + bw, by + bh, bx, by + bh, r)
+  ctx.arcTo(bx, by + bh, bx, by, r)
+  ctx.arcTo(bx, by, bx + bw, by, r)
+  ctx.closePath()
+  ctx.fillStyle = 'rgba(3,3,8,0.65)'
+  ctx.fill()
   ctx.shadowColor = color
   ctx.shadowBlur = 22
   ctx.fillStyle = '#ffffff'
@@ -52,7 +69,7 @@ function makeLabelSprite(text, color) {
   tex.colorSpace = THREE.SRGBColorSpace
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })
   const sprite = new THREE.Sprite(mat)
-  sprite.scale.set(7.5, 1.9, 1)
+  sprite.scale.set(9, 2.2, 1)
   return sprite
 }
 
@@ -98,6 +115,7 @@ export function createWorld(config, reducedMotion) {
       uniform float uRippleAmp;
       varying float vH;
       varying float vGlow;
+      varying float vDist;
       ${NOISE_GLSL}
       void main() {
         vec3 pos = position;
@@ -110,6 +128,7 @@ export function createWorld(config, reducedMotion) {
         vH = n;
         vGlow = exp(-d * 0.18);
         vec4 mv = modelViewMatrix * vec4(pos.x, y, pos.z, 1.0);
+        vDist = -mv.z;
         gl_PointSize = (2.0 + vH * 2.2) * uPixelRatio * (170.0 / max(1.0, -mv.z));
         gl_Position = projectionMatrix * mv;
       }
@@ -117,14 +136,18 @@ export function createWorld(config, reducedMotion) {
     fragmentShader: /* glsl */ `
       varying float vH;
       varying float vGlow;
+      varying float vDist;
       void main() {
         vec2 c = gl_PointCoord - 0.5;
         float a = smoothstep(0.5, 0.05, length(c));
-        vec3 base = mix(vec3(0.5, 0.53, 0.58), vec3(0.9, 0.95, 1.0), vH);
+        // Dim base so the plain reads dark, not white; fade with distance so
+        // far points vanish instead of piling up into a white wall at the horizon.
+        vec3 base = mix(vec3(0.22, 0.24, 0.27), vec3(0.45, 0.48, 0.52), vH);
         vec3 green = vec3(0.42, 0.95, 0.62);
         vec3 col = mix(base, green, smoothstep(0.74, 0.95, vH) * 0.7);
         col += vec3(0.45, 0.85, 0.55) * vGlow * 0.2;
-        gl_FragColor = vec4(col, a * 0.7);
+        float fade = 1.0 - smoothstep(45.0, 95.0, vDist);
+        gl_FragColor = vec4(col, a * 0.7 * fade);
       }
     `,
   })
@@ -145,7 +168,7 @@ export function createWorld(config, reducedMotion) {
     sg.setAttribute('position', new THREE.BufferAttribute(sp, 3))
     const sm = new THREE.PointsMaterial({
       color: 0xcfd4da, size: 0.55, sizeAttenuation: true,
-      transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending,
+      transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending,
     })
     const stars = new THREE.Points(sg, sm)
     stars.frustumCulled = false
@@ -165,7 +188,7 @@ export function createWorld(config, reducedMotion) {
   group.add(horizon)
   const horizonCore = new THREE.Sprite(
     new THREE.SpriteMaterial({
-      map: horizonTex, transparent: true, opacity: 0.4,
+      map: horizonTex, transparent: true, opacity: 0.25,
       blending: THREE.AdditiveBlending, depthWrite: false,
     })
   )
@@ -211,7 +234,7 @@ export function createWorld(config, reducedMotion) {
     fragmentShader: /* glsl */ `
       varying float vA;
       void main() {
-        gl_FragColor = vec4(0.82, 0.88, 1.0, vA * 0.5);
+        gl_FragColor = vec4(0.82, 0.88, 1.0, vA * 0.3);
       }
     `,
   })
