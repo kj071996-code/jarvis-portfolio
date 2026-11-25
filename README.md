@@ -30,6 +30,28 @@ npm run preview    # serve the production build
 
 Requires Node 18+.
 
+## Python backend (optional — makes the dashboards live)
+
+The dashboards work on their own with the simulated data in `src/config.js`
+(that is how the site runs on GitHub Pages). To make them genuinely
+functional, run the FastAPI backend in `server/`:
+
+```bash
+pip install -r server/requirements.txt
+python -m uvicorn server.main:app --reload --port 8000
+```
+
+Then set `apiBase: 'http://localhost:8000'` in `src/config.js` and run the
+frontend — the dashboards fetch from the backend instead. Leave `apiBase`
+empty and everything falls back to the simulated data, so the site never
+depends on the backend being up.
+
+The backend is a **paper/simulated engine**: the Trading Bots balance drifts
+with a small random walk while paper trading runs (no real funds, no
+exchange), and the Speaking Coach grades drills with simple rules
+(transcript length and filler-word count), not speech recognition or an LLM.
+See `server/README.md` for the endpoints.
+
 ## Controls
 
 | Input | Action |
@@ -67,6 +89,9 @@ scene code needs to change.
   shape of each dashboard's data.
 - `outro` — the vortex hint text, strand count, spiral turns.
 - `controls` — hint text, prompt and button labels.
+- `apiBase` — backend URL (`'http://localhost:8000'`) or `''` for simulated
+  mode. When set, the dashboards fetch from the FastAPI backend in `server/`;
+  when empty or unreachable, they fall back to this file's sample data.
 
 ## Tech
 
@@ -84,6 +109,10 @@ scene code needs to change.
 index.html
 vite.config.js
 package.json
+server/
+  main.py            # FastAPI backend: paper trading + drill grading
+  requirements.txt   # fastapi + uvicorn
+  README.md          # backend run instructions + endpoints
 src/
   main.js            # renderer, composer, state machine, input, camera
   config.js          # ALL copy, projects, colours — edit this
@@ -102,6 +131,10 @@ src/
   paper trading" button toggles a live paper balance ticker; the Speaking
   Coach tabs switch content and the Drill tab runs a 30-second drill timer.
   All values are sample data in `config.js` — replace them with your own.
+  With the Python backend running and `apiBase` set, both dashboards fetch
+  from the server instead (paper balance ticks server-side; drill grades
+  come back rule-based). Without it, they use the simulated data in
+  `config.js` — the GitHub Pages deployment works this way.
 - The vortex "Leave" action requests fullscreen; browsers (notably iOS
   Safari) may refuse the request, in which case the vortex still plays and
   the on-screen hint explains how to exit fullscreen.

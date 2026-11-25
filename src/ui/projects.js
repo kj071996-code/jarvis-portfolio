@@ -2,6 +2,14 @@
 // Full dark-mode dashboard UIs, rendered as plain HTML/CSS overlays over the
 // canvas. All copy and data comes from config.js — nothing is hard-coded here
 // except structure and styling hooks.
+//
+// ── Backend API (optional) ─────────────────────────────────────────────────
+// When CONFIG.apiBase is set (e.g. 'http://localhost:8000'), the dashboards
+// fetch live data from the FastAPI backend in server/ (paper trading engine
+// + rule-based drill grading). When apiBase is empty or a request fails,
+// everything falls back to the simulated data in config.js, so the site
+// keeps working on GitHub Pages with no backend at all. Layout and copy are
+// identical either way — only the data source changes.
 import { CONFIG } from '../config.js'
 
 const fmt = (n) => n.toFixed(2)
@@ -11,6 +19,41 @@ function el(tag, cls, html) {
   if (cls) node.className = cls
   if (html != null) node.innerHTML = html
   return node
+}
+
+// ── Optional backend client ────────────────────────────────────────────────
+const API_BASE = (CONFIG.apiBase || '').replace(/\/$/, '')
+
+let backendChecked = false
+let backendOk = false
+
+async function api(path, opts) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 3000)
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      ...opts,
+    })
+    if (!res.ok) throw new Error(`api ${path} → ${res.status}`)
+    return res.json()
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function backendAvailable() {
+  if (!API_BASE) return false
+  if (backendChecked) return backendOk
+  backendChecked = true
+  try {
+    const h = await api('/api/health')
+    backendOk = h && h.ok === true
+  } catch {
+    backendOk = false
+  }
+  return backendOk
 }
 
 function sparkline(series, width = 260, height = 74, stroke = '#2dd4bf') {
@@ -34,6 +77,44 @@ function rowsTable(headers, rowsHtml) {
 }
 
 // ── Trading Bots ───────────────────────────────────────────────────────────
+function botsHtml(bots) {
+  return `<h3>Live trading bots</h3>` + bots.map((b) => `
+    <div class="bot-row">
+      <span class="dot ${b.status}"></span>
+      <span class="name">${b.name}</span>
+      <span class="pair">${b.pair}</span>
+      <span class="pnl ${b.pnl.startsWith('+') ? 'pos' : b.pnl.startsWith('−') ? 'neg' : ''}">${b.pnl}</span>
+    </div>`).join('')
+}
+
+function equityHtml(title, series, change) {
+  return `<h3>${title}</h3>${sparkline(series)}<div class="eq-change">${change}</div>`
+}
+
+function positionsHtml(positions) {
+  return `<h3>Open Positions</h3>` + rowsTable(
+    ['pair', 'side', 'size', 'pnl'],
+    positions.map((p) => `<tr>
+      <td>${p.pair}</td>
+      <td><span class="side ${p.side}">${p.side}</span></td>
+      <td>${p.size}</td>
+      <td class="${p.pnl.startsWith('+') ? 'pos' : 'neg'}">${p.pnl}</td>
+    </tr>`).join('')
+  )
+}
+
+function tradesHtml(trades) {
+  return `<h3>Recent Trades</h3>` + rowsTable(
+    ['pair', 'side', 'price', 'pnl'],
+    trades.map((t) => `<tr>
+      <td>${t.pair}</td>
+      <td><span class="side ${t.side}">${t.side}</span></td>
+      <td>${t.price}</td>
+      <td class="${t.pnl.startsWith('+') ? 'pos' : 'neg'}">${t.pnl}</td>
+    </tr>`).join('')
+  )
+}
+
 function renderTrading(project, onBack) {
   const d = project.dashboard
   const root = el('div', 'project trading')
@@ -60,56 +141,109 @@ function renderTrading(project, onBack) {
   grid.appendChild(secureCard)
 
   const botsCard = el('div', 'card')
-  botsCard.innerHTML = `<h3>Live trading bots</h3>` + d.bots.map((b) => `
-    <div class="bot-row">
-      <span class="dot ${b.status}"></span>
-      <span class="name">${b.name}</span>
-      <span class="pair">${b.pair}</span>
-      <span class="pnl ${b.pnl.startsWith('+') ? 'pos' : b.pnl.startsWith('−') ? 'neg' : ''}">${b.pnl}</span>
-    </div>`).join('')
+  botsCard.innerHTML = botsHtml(d.bots)
   grid.appendChild(botsCard)
   body.appendChild(grid)
 
   // Lower panels: equity / positions / trades
   const panels = el('div', 'panels')
   const eq = el('div', 'card')
-  eq.innerHTML = `<h3>${d.equity.title}</h3>${sparkline(d.equity.series)}<div class="eq-change">${d.equity.change}</div>`
+  eq.innerHTML = equityHtml(d.equity.title, d.equity.series, d.equity.change)
   panels.appendChild(eq)
 
   const pos = el('div', 'card')
-  pos.innerHTML = `<h3>Open Positions</h3>` + rowsTable(
-    ['pair', 'side', 'size', 'pnl'],
-    d.positions.map((p) => `<tr>
-      <td>${p.pair}</td>
-      <td><span class="side ${p.side}">${p.side}</span></td>
-      <td>${p.size}</td>
-      <td class="${p.pnl.startsWith('+') ? 'pos' : 'neg'}">${p.pnl}</td>
-    </tr>`).join('')
-  )
+  pos.innerHTML = positionsHtml(d.positions)
   panels.appendChild(pos)
 
   const tr = el('div', 'card')
-  tr.innerHTML = `<h3>Recent Trades</h3>` + rowsTable(
-    ['pair', 'side', 'price', 'pnl'],
-    d.trades.map((t) => `<tr>
-      <td>${t.pair}</td>
-      <td><span class="side ${t.side}">${t.side}</span></td>
-      <td>${t.price}</td>
-      <td class="${t.pnl.startsWith('+') ? 'pos' : 'neg'}">${t.pnl}</td>
-    </tr>`).join('')
-  )
+  tr.innerHTML = tradesHtml(d.trades)
   panels.appendChild(tr)
   body.appendChild(panels)
   root.appendChild(body)
 
-  // Paper trading toggle — working state, no real funds.
+  // Paper trading — backend when configured, client-side ticker otherwise.
+  // No real funds either way.
   const cta = balanceCard.querySelector('.cta')
   const note = balanceCard.querySelector('.live-note')
   const balEl = balanceCard.querySelector('.balance-value')
   let running = false
   let tick = null
+  let poll = null
   let balance = d.balance
-  cta.addEventListener('click', () => {
+  let dead = false
+
+  function setRunning(r) {
+    running = r
+    cta.textContent = running ? d.ctaStop : d.ctaStart
+    cta.classList.toggle('running', running)
+    note.classList.toggle('hidden', !running)
+  }
+
+  function applyStatus(status) {
+    balEl.textContent = fmt(status.balance)
+    botsCard.innerHTML = botsHtml(status.bots)
+  }
+
+  function applyEquity(eqData) {
+    eq.innerHTML = equityHtml(d.equity.title, eqData.series, eqData.change)
+    pos.innerHTML = positionsHtml(eqData.positions)
+    tr.innerHTML = tradesHtml(eqData.trades)
+  }
+
+  function startPolling() {
+    stopPolling()
+    poll = setInterval(async () => {
+      try {
+        const [status, eqData] = await Promise.all([
+          api('/api/trading/status'),
+          api('/api/trading/equity'),
+        ])
+        if (dead) return
+        applyStatus(status)
+        applyEquity(eqData)
+      } catch { /* stay on the last good values */ }
+    }, 2000)
+  }
+
+  function stopPolling() {
+    if (poll) clearInterval(poll)
+    poll = null
+  }
+
+  // If a backend is configured, hydrate from it; otherwise the simulated
+  // config.js data above stays as-is.
+  ;(async () => {
+    if (!(await backendAvailable())) return
+    try {
+      const [status, eqData] = await Promise.all([
+        api('/api/trading/status'),
+        api('/api/trading/equity'),
+      ])
+      if (dead) return
+      applyStatus(status)
+      applyEquity(eqData)
+      if (status.running) {
+        setRunning(true)
+        startPolling()
+      }
+    } catch { /* simulated data stays */ }
+  })()
+
+  cta.addEventListener('click', async () => {
+    if (await backendAvailable()) {
+      try {
+        const status = running
+          ? await api('/api/trading/stop', { method: 'POST' })
+          : await api('/api/trading/start', { method: 'POST' })
+        if (dead) return
+        setRunning(status.running)
+        applyStatus(status)
+        if (status.running) startPolling()
+        else stopPolling()
+      } catch { /* backend hiccup: leave the button alone */ }
+      return
+    }
+    // No backend — existing client-side ticker behaviour.
     running = !running
     cta.textContent = running ? d.ctaStop : d.ctaStart
     cta.classList.toggle('running', running)
@@ -125,7 +259,11 @@ function renderTrading(project, onBack) {
       balEl.textContent = fmt(balance)
     }
   })
-  root._cleanup = () => clearInterval(tick)
+  root._cleanup = () => {
+    dead = true
+    clearInterval(tick)
+    stopPolling()
+  }
   return root
 }
 
@@ -168,6 +306,20 @@ function renderSpeaking(project, onBack) {
 
   const body = el('div', 'project-body')
 
+  // Backend data (when configured) overrides the simulated config.js data.
+  let liveCoach = null
+  let dead = false
+  // Drill state lives here (not inside the tab) so switching tabs mid-drill
+  // keeps the timer and the backend drill id.
+  let drillTimer = null
+  let drillId = null
+  let drillSeconds = 0
+  let drillPrompt = d.drills[0]
+  let drillBtn = null
+  let drillTimerEl = null
+  let chartCardEl = null
+  let radarCardEl = null
+
   // Tabs
   const tabs = el('div', 'tabs')
   d.tabs.forEach((t, i) => {
@@ -184,68 +336,116 @@ function renderSpeaking(project, onBack) {
   const tabBody = el('div')
   body.appendChild(tabBody)
 
+  function activeTabName() {
+    const active = tabs.querySelector('.tab.active')
+    return active ? active.textContent : 'Drill'
+  }
+
+  function refreshActiveTab() {
+    tabBody.innerHTML = ''
+    tabBody.appendChild(tabContent(activeTabName()))
+  }
+
   // Stat cards (always visible)
   const stats = el('div', 'stat-grid')
-  d.stats.forEach((s) => {
-    stats.innerHTML += `<div class="card stat"><h3>${s.label}</h3><div class="value">${s.value}</div><div class="sub">${s.sub}</div></div>`
-  })
+  function renderStats(statsData) {
+    stats.innerHTML = statsData.map((s) =>
+      `<div class="card stat"><h3>${s.label}</h3><div class="value">${s.value}</div><div class="sub">${s.sub}</div></div>`
+    ).join('')
+  }
+  renderStats(d.stats)
   body.appendChild(stats)
 
   function tabContent(tab) {
+    const data = liveCoach || d
     const wrap = el('div')
     if (tab === 'Drill') {
       const grid = el('div', 'coach-grid')
       const chartCard = el('div', 'card')
-      chartCard.innerHTML = `<h3>Grade trend</h3><div class="empty-chart">${d.emptyChart}</div>`
+      chartCard.innerHTML = `<h3>Grade trend</h3><div class="empty-chart">${data.emptyChart}</div>`
       grid.appendChild(chartCard)
+      chartCardEl = chartCard
       const radarCard = el('div', 'card')
-      radarCard.innerHTML = `<h3>Skill radar</h3><div class="radar-wrap">${radarSvg(d.radar.axes, d.radar.values)}</div>`
+      radarCard.innerHTML = `<h3>Skill radar</h3><div class="radar-wrap">${radarSvg(data.radar.axes, data.radar.values)}</div>`
       grid.appendChild(radarCard)
+      radarCardEl = radarCard
       wrap.appendChild(grid)
 
       const drill = el('div', 'card drill-box')
-      drill.innerHTML = `<h3>Next drill</h3><div class="drill-prompt">${d.drills[0]}</div>
-        <button class="btn-green">Start drill</button>
-        <span class="drill-timer muted small" style="margin-left:14px"></span>`
+      drill.innerHTML = `<h3>Next drill</h3><div class="drill-prompt">${drillPrompt}</div>
+        <button class="btn-green">${drillTimer ? 'Finish drill' : 'Start drill'}</button>
+        <span class="drill-timer muted small" style="margin-left:14px">${drillTimer ? `0:${drillSeconds < 10 ? '0' : ''}${drillSeconds} remaining` : ''}</span>`
       const btn = drill.querySelector('.btn-green')
       const timerEl = drill.querySelector('.drill-timer')
-      let drillTimer = null
-      let seconds = 0
-      btn.addEventListener('click', () => {
+      drillBtn = btn
+      drillTimerEl = timerEl
+      if (drillTimer) btn.dataset.state = 'running'
+
+      btn.addEventListener('click', async () => {
         if (btn.dataset.state === 'running') {
           clearInterval(drillTimer)
+          drillTimer = null
+          // Backend finish: submit the drill and apply the graded result.
+          if (drillId && (await backendAvailable())) {
+            try {
+              const res = await api('/api/coach/drill/submit', {
+                method: 'POST',
+                body: JSON.stringify({ drill_id: drillId }),
+              })
+              drillId = null
+              if (dead) return
+              btn.dataset.state = ''
+              btn.textContent = 'Start drill'
+              timerEl.textContent = `drill saved — grade ${res.grade}`
+              applyCoachResult(res)
+              return
+            } catch { /* fall through to the local finish */ }
+          }
+          // No backend — existing client-side finish.
+          drillId = null
           btn.dataset.state = ''
           btn.textContent = 'Start drill'
           timerEl.textContent = 'drill saved — grade B'
           const last = stats.querySelector('.stat .value')
           if (last) last.textContent = 'B/A−'
-          chartCard.querySelector('.empty-chart').textContent = 'First drill plotted — 1 grade on the chart'
+          const empty = chartCard.querySelector('.empty-chart')
+          if (empty) empty.textContent = 'First drill plotted — 1 grade on the chart'
           return
+        }
+        // Start: ask the backend for a drill prompt when one is configured.
+        if (await backendAvailable()) {
+          try {
+            const res = await api('/api/coach/drill/start', { method: 'POST' })
+            drillId = res.drill_id
+            drillPrompt = res.prompt
+            const promptEl = drill.querySelector('.drill-prompt')
+            if (promptEl) promptEl.textContent = drillPrompt
+          } catch { drillId = null }
         }
         btn.dataset.state = 'running'
         btn.textContent = 'Finish drill'
-        seconds = 30
-        timerEl.textContent = `0:${seconds} remaining`
+        drillSeconds = 30
+        timerEl.textContent = `0:${drillSeconds} remaining`
         drillTimer = setInterval(() => {
-          seconds--
-          if (seconds <= 0) {
+          drillSeconds--
+          if (drillSeconds <= 0) {
             clearInterval(drillTimer)
-            timerEl.textContent = 'time — finish when ready'
+            drillTimer = null
+            if (drillTimerEl) drillTimerEl.textContent = 'time — finish when ready'
             return
           }
-          timerEl.textContent = `0:${seconds < 10 ? '0' : ''}${seconds} remaining`
+          if (drillTimerEl) drillTimerEl.textContent = `0:${drillSeconds < 10 ? '0' : ''}${drillSeconds} remaining`
         }, 1000)
       })
       wrap.appendChild(drill)
-      wrap._cleanup = () => clearInterval(drillTimer)
     } else if (tab === 'Sessions') {
       const card = el('div', 'card')
-      card.innerHTML = `<h3>Past sessions</h3>` + d.sessions.map((s) => `
+      card.innerHTML = `<h3>Past sessions</h3>` + data.sessions.map((s) => `
         <div class="session-row"><span>${s.name}</span><span class="date">${s.date}</span><span class="grade">${s.grade}</span></div>`).join('')
       wrap.appendChild(card)
     } else {
       const card = el('div', 'card')
-      card.innerHTML = `<h3>History</h3>` + d.history.map((h) => `
+      card.innerHTML = `<h3>History</h3>` + data.history.map((h) => `
         <div class="session-row"><span>${h.text}</span><span class="date">${h.date}</span></div>`).join('')
       wrap.appendChild(card)
     }
@@ -255,12 +455,51 @@ function renderSpeaking(project, onBack) {
 
   // Where you shine / where to improve
   const shine = el('div', 'shine-grid')
-  shine.innerHTML = `
-    <div class="card good"><h3>Where you shine</h3><ul>${d.shine.map((s) => `<li>${s}</li>`).join('')}</ul></div>
-    <div class="card work"><h3>Where to improve</h3><ul>${d.improve.map((s) => `<li>${s}</li>`).join('')}</ul></div>`
+  function renderShineImprove(shineData, improveData) {
+    shine.innerHTML = `
+    <div class="card good"><h3>Where you shine</h3><ul>${shineData.map((s) => `<li>${s}</li>`).join('')}</ul></div>
+    <div class="card work"><h3>Where to improve</h3><ul>${improveData.map((s) => `<li>${s}</li>`).join('')}</ul></div>`
+  }
+  renderShineImprove(d.shine, d.improve)
   body.appendChild(shine)
 
+  // Apply a graded drill result from the backend to every visible surface.
+  function applyCoachResult(res) {
+    liveCoach = liveCoach || {}
+    liveCoach.stats = res.stats
+    liveCoach.radar = res.radar
+    liveCoach.shine = res.shine
+    liveCoach.improve = res.improve
+    liveCoach.sessions = res.sessions
+    liveCoach.history = res.history
+    renderStats(res.stats)
+    renderShineImprove(res.shine, res.improve)
+    const empty = chartCardEl && chartCardEl.querySelector('.empty-chart')
+    if (empty) empty.textContent = 'First drill plotted — 1 grade on the chart'
+    const radarWrap = radarCardEl && radarCardEl.querySelector('.radar-wrap')
+    if (radarWrap) radarWrap.innerHTML = radarSvg(res.radar.axes, res.radar.values)
+  }
+
+  // If a backend is configured, hydrate from it; otherwise the simulated
+  // config.js data above stays as-is.
+  ;(async () => {
+    if (!(await backendAvailable())) return
+    try {
+      const data = await api('/api/coach/stats')
+      if (dead) return
+      liveCoach = data
+      renderStats(data.stats)
+      renderShineImprove(data.shine, data.improve)
+      refreshActiveTab()
+    } catch { /* simulated data stays */ }
+  })()
+
   root.appendChild(body)
+  root._cleanup = () => {
+    dead = true
+    if (drillTimer) clearInterval(drillTimer)
+    drillTimer = null
+  }
   return root
 }
 

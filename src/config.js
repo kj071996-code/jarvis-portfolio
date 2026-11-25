@@ -39,6 +39,13 @@ export const CONFIG = {
     particleGray: '#9aa0a6',
   },
 
+  // ── Backend API (optional) ──────────────────────────────────────────────
+  // Set to your FastAPI server URL (e.g. 'http://localhost:8000') to make
+  // the dashboards live. Leave '' (the default) for simulated/offline mode
+  // — the site then uses only the sample data in this file, which is how it
+  // works on GitHub Pages.
+  apiBase: '',
+
   // ── Scene 1 · Intro ring ─────────────────────────────────────────────────
   intro: {
     // Typewriter caption, streamed line by line beneath the ring.
