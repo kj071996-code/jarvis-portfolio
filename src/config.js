@@ -96,7 +96,8 @@ export const CONFIG = {
     camera: {
       distance: 11,
       height: 6.5,
-      lookHeight: 3.0,
+      lookHeight: 4.5, // camera looks up more — sky, horizon glow and beacon
+      // labels sit comfortably in frame instead of near the top edge
       orbitSway: 0.16, // radians of slow orbital drift
     },
     bounds: 92, // avatar cannot walk past this radius

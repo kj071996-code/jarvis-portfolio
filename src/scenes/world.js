@@ -106,7 +106,13 @@ export function createWorld(config, reducedMotion) {
     uniforms: terrainUniforms,
     transparent: true,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    // Normal blending, NOT additive: with a dense grid viewed at a grazing
+    // angle, many rows of additive points stack onto the same pixels and sum
+    // to white no matter how dim each one is. Normal blending composites
+    // overlapping points toward the point colour and can never exceed it,
+    // so the plain stays dark. UnrealBloom still glows the bright green
+    // highlights and the beacon cores (they sit above its threshold).
+    blending: THREE.NormalBlending,
     vertexShader: /* glsl */ `
       uniform float uTime;
       uniform vec2 uAvatar;
@@ -140,14 +146,14 @@ export function createWorld(config, reducedMotion) {
       void main() {
         vec2 c = gl_PointCoord - 0.5;
         float a = smoothstep(0.5, 0.05, length(c));
-        // Dim base so the plain reads dark, not white; fade with distance so
-        // far points vanish instead of piling up into a white wall at the horizon.
+        // Dim base so the plain reads dark; fade with distance so far points
+        // vanish into the black instead of stacking at the horizon.
         vec3 base = mix(vec3(0.15, 0.16, 0.18), vec3(0.32, 0.34, 0.38), vH);
         vec3 green = vec3(0.42, 0.95, 0.62);
         vec3 col = mix(base, green, smoothstep(0.74, 0.95, vH) * 0.7);
         col += vec3(0.45, 0.85, 0.55) * vGlow * 0.2;
         float fade = 1.0 - smoothstep(30.0, 70.0, vDist);
-        gl_FragColor = vec4(col, a * 0.4 * fade);
+        gl_FragColor = vec4(col, a * 0.55 * fade);
       }
     `,
   })

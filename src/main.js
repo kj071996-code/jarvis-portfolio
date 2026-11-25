@@ -123,13 +123,21 @@ function enterWorld(firstTime = false) {
   world.avatar.position.copy(avatarPos)
 
   if (firstTime) {
-    // camera drops from the collapsed ring into the world
+    // camera drops from the collapsed ring into the world.
+    // Land exactly where the follow camera holds it (behind the avatar):
+    // the follow logic recomputes camYaw as avatarHeading + PI every frame
+    // (line 319), so the tween must target that same yaw. Targeting the stale
+    // initial camYaw (PI) put the camera on the opposite side of the avatar,
+    // and the follow lerp then dragged it through the avatar — where lookAt
+    // points straight down — which is why the view settled looking down and
+    // the sky, horizon glow and beacon labels left the frame.
+    const settleYaw = avatarHeading + Math.PI
     camera.position.set(avatarPos.x, 26, avatarPos.z + 34)
     camera.lookAt(avatarPos.x, 0, avatarPos.z - 10)
     gsap.to(camera.position, {
-      x: avatarPos.x + Math.sin(camYaw) * CONFIG.world.camera.distance,
+      x: avatarPos.x + Math.sin(settleYaw) * CONFIG.world.camera.distance,
       y: CONFIG.world.camera.height,
-      z: avatarPos.z + Math.cos(camYaw) * CONFIG.world.camera.distance,
+      z: avatarPos.z + Math.cos(settleYaw) * CONFIG.world.camera.distance,
       duration: reducedMotion ? 0.4 : 1.8,
       ease: 'power2.inOut',
     })
