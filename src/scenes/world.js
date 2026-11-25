@@ -129,7 +129,7 @@ export function createWorld(config, reducedMotion) {
         vGlow = exp(-d * 0.18);
         vec4 mv = modelViewMatrix * vec4(pos.x, y, pos.z, 1.0);
         vDist = -mv.z;
-        gl_PointSize = (2.0 + vH * 2.2) * uPixelRatio * (170.0 / max(1.0, -mv.z));
+        gl_PointSize = (2.0 + vH * 2.2) * uPixelRatio * (90.0 / max(1.0, -mv.z));
         gl_Position = projectionMatrix * mv;
       }
     `,
@@ -142,12 +142,12 @@ export function createWorld(config, reducedMotion) {
         float a = smoothstep(0.5, 0.05, length(c));
         // Dim base so the plain reads dark, not white; fade with distance so
         // far points vanish instead of piling up into a white wall at the horizon.
-        vec3 base = mix(vec3(0.22, 0.24, 0.27), vec3(0.45, 0.48, 0.52), vH);
+        vec3 base = mix(vec3(0.15, 0.16, 0.18), vec3(0.32, 0.34, 0.38), vH);
         vec3 green = vec3(0.42, 0.95, 0.62);
         vec3 col = mix(base, green, smoothstep(0.74, 0.95, vH) * 0.7);
         col += vec3(0.45, 0.85, 0.55) * vGlow * 0.2;
-        float fade = 1.0 - smoothstep(45.0, 95.0, vDist);
-        gl_FragColor = vec4(col, a * 0.7 * fade);
+        float fade = 1.0 - smoothstep(30.0, 70.0, vDist);
+        gl_FragColor = vec4(col, a * 0.4 * fade);
       }
     `,
   })
@@ -282,21 +282,21 @@ export function createWorld(config, reducedMotion) {
     const [bx, bz] = project.position
 
     const outer = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.42, 0.62, 11, 24, 1, true),
+      new THREE.CylinderGeometry(0.42, 0.62, 9, 24, 1, true),
       new THREE.MeshBasicMaterial({
         color, transparent: true, opacity: 0.3, side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     )
-    outer.position.y = 5.5
+    outer.position.y = 4.5
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.14, 11, 12, 1, true),
+      new THREE.CylinderGeometry(0.1, 0.14, 9, 12, 1, true),
       new THREE.MeshBasicMaterial({
         color, transparent: true, opacity: 0.8, side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     )
-    core.position.y = 5.5
+    core.position.y = 4.5
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(1.1, 1.45, 40),
       new THREE.MeshBasicMaterial({
@@ -315,7 +315,7 @@ export function createWorld(config, reducedMotion) {
     glow.scale.set(10, 10, 1)
     glow.position.y = 1.2
     const label = makeLabelSprite(project.label, project.beaconColor)
-    label.position.y = 11.6
+    label.position.y = 9.8
 
     bGroup.add(outer, core, ring, glow, label)
     bGroup.position.set(bx, 0, bz)
@@ -337,7 +337,7 @@ export function createWorld(config, reducedMotion) {
       const pulse = 0.3 + 0.07 * Math.sin(time * 1.8 + b.phase)
       b.outer.material.opacity = pulse
       b.core.material.opacity = 0.8 + 0.15 * Math.sin(time * 1.8 + b.phase)
-      b.label.position.y = 11.6 + Math.sin(time * 0.9 + b.phase) * 0.25
+      b.label.position.y = 9.8 + Math.sin(time * 0.9 + b.phase) * 0.25
       b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase)
     }
 

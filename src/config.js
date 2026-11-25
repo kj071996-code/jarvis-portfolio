@@ -96,7 +96,7 @@ export const CONFIG = {
     camera: {
       distance: 11,
       height: 6.5,
-      lookHeight: 1.4,
+      lookHeight: 3.0,
       orbitSway: 0.16, // radians of slow orbital drift
     },
     bounds: 92, // avatar cannot walk past this radius
