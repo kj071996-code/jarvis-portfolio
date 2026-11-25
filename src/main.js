@@ -25,7 +25,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2))
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.05
+renderer.toneMappingExposure = 0.9
 container.appendChild(renderer.domElement)
 
 const scene = new THREE.Scene()
@@ -40,9 +40,9 @@ const composer = new EffectComposer(renderer)
 composer.addPass(new RenderPass(scene, camera))
 const bloom = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.85, // strength
-  0.65, // radius
-  0.12, // threshold
+  0.5, // strength
+  0.5, // radius
+  0.55, // threshold — only genuinely bright cores bloom
 )
 composer.addPass(bloom)
 composer.addPass(new OutputPass())
@@ -143,6 +143,7 @@ function openProject(project) {
   hide('hud')
   hide('hint')
   hide('prompt')
+  hide('nearest')
   hide('joystick')
 
   const overlay = $('project-overlay')
@@ -175,6 +176,7 @@ function leaveWorld() {
   hide('hud')
   hide('hint')
   hide('prompt')
+  hide('nearest')
   hide('joystick')
   world.group.visible = false
   outro.group.visible = true
@@ -267,6 +269,7 @@ $('prompt').addEventListener('click', () => { if (activeBeacon) openProject(acti
 
 // ── Movement + camera ──────────────────────────────────────────────────────
 const tmpV = new THREE.Vector3()
+const tmpFwd = new THREE.Vector3()
 function updateWorld(dt, time) {
   // input vector in camera space
   let ix = 0
@@ -336,6 +339,33 @@ function updateWorld(dt, time) {
   } else {
     activeBeacon = null
     hide('prompt')
+  }
+
+  // nearest-station readout — always a visible destination while in the world.
+  // Hidden when the "open …" prompt is showing (it already says what to do).
+  if (activeBeacon) {
+    hide('nearest')
+  } else if (nearest) {
+    // bearing of the beacon relative to where the camera is looking
+    camera.getWorldDirection(tmpFwd)
+    const dx = nearest.group.position.x - avatarPos.x
+    const dz = nearest.group.position.z - avatarPos.z
+    const dl = Math.hypot(dx, dz) || 1
+    const tx = dx / dl
+    const tz = dz / dl
+    const fl = Math.hypot(tmpFwd.x, tmpFwd.z) || 1
+    const fx = tmpFwd.x / fl
+    const fz = tmpFwd.z / fl
+    const dot = fx * tx + fz * tz
+    const cross = fz * tx - fx * tz // > 0 → beacon is to the left
+    const angle = Math.atan2(cross, dot)
+    let arrow = '▲' // ahead
+    if (angle >= Math.PI / 4) arrow = '◀' // left
+    else if (angle <= -Math.PI / 4) arrow = '▶' // right
+    $('nearest').textContent = `${arrow} nearest station: ${nearest.project.label} · ${Math.round(nearestDist)}m`
+    show('nearest')
+  } else {
+    hide('nearest')
   }
 
   world.update(time, dt, avatarPos, avatarHeading)

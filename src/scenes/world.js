@@ -123,8 +123,8 @@ export function createWorld(config, reducedMotion) {
         vec3 base = mix(vec3(0.5, 0.53, 0.58), vec3(0.9, 0.95, 1.0), vH);
         vec3 green = vec3(0.42, 0.95, 0.62);
         vec3 col = mix(base, green, smoothstep(0.74, 0.95, vH) * 0.7);
-        col += vec3(0.45, 0.85, 0.55) * vGlow * 0.35;
-        gl_FragColor = vec4(col, a * 0.85);
+        col += vec3(0.45, 0.85, 0.55) * vGlow * 0.2;
+        gl_FragColor = vec4(col, a * 0.7);
       }
     `,
   })
@@ -165,7 +165,7 @@ export function createWorld(config, reducedMotion) {
   group.add(horizon)
   const horizonCore = new THREE.Sprite(
     new THREE.SpriteMaterial({
-      map: horizonTex, transparent: true, opacity: 0.9,
+      map: horizonTex, transparent: true, opacity: 0.4,
       blending: THREE.AdditiveBlending, depthWrite: false,
     })
   )
@@ -259,25 +259,25 @@ export function createWorld(config, reducedMotion) {
     const [bx, bz] = project.position
 
     const outer = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.42, 0.62, 10, 24, 1, true),
+      new THREE.CylinderGeometry(0.42, 0.62, 11, 24, 1, true),
       new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity: 0.16, side: THREE.DoubleSide,
+        color, transparent: true, opacity: 0.3, side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     )
-    outer.position.y = 5
+    outer.position.y = 5.5
     const core = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.14, 10, 12, 1, true),
+      new THREE.CylinderGeometry(0.1, 0.14, 11, 12, 1, true),
       new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
+        color, transparent: true, opacity: 0.8, side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     )
-    core.position.y = 5
+    core.position.y = 5.5
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(1.1, 1.45, 40),
       new THREE.MeshBasicMaterial({
-        color, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+        color, transparent: true, opacity: 0.7, side: THREE.DoubleSide,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
     )
@@ -286,10 +286,10 @@ export function createWorld(config, reducedMotion) {
     const glow = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: makeRadialTexture('rgba(255,255,255,0.9)', 'rgba(255,255,255,0.25)'),
-        color, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false,
+        color, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false,
       })
     )
-    glow.scale.set(7, 7, 1)
+    glow.scale.set(10, 10, 1)
     glow.position.y = 1.2
     const label = makeLabelSprite(project.label, project.beaconColor)
     label.position.y = 11.6
@@ -311,11 +311,11 @@ export function createWorld(config, reducedMotion) {
     horizon.scale.set(W.horizonLight.scale[0] * breathe, W.horizonLight.scale[1] * breathe, 1)
 
     for (const b of beacons) {
-      const pulse = 0.13 + 0.07 * Math.sin(time * 1.8 + b.phase)
+      const pulse = 0.3 + 0.07 * Math.sin(time * 1.8 + b.phase)
       b.outer.material.opacity = pulse
-      b.core.material.opacity = 0.45 + 0.2 * Math.sin(time * 1.8 + b.phase)
+      b.core.material.opacity = 0.8 + 0.15 * Math.sin(time * 1.8 + b.phase)
       b.label.position.y = 11.6 + Math.sin(time * 0.9 + b.phase) * 0.25
-      b.glow.material.opacity = 0.45 + 0.15 * Math.sin(time * 1.8 + b.phase)
+      b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase)
     }
 
     // avatar gentle bob + lean into movement

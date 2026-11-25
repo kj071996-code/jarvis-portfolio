@@ -83,9 +83,9 @@ export const CONFIG = {
     horizonLight: {
       // huge warm-white elliptical bloom near the horizon
       position: [0, 6, -88],
-      scale: [150, 42],
+      scale: [120, 32],
       color: '#fff3df',
-      opacity: 0.95,
+      opacity: 0.5,
     },
     beams: 130, // thin vertical light beams
     avatar: {
@@ -112,7 +112,7 @@ export const CONFIG = {
       label: 'trading bots',
       screen: 'trading',
       beaconColor: '#14b8a6',
-      position: [-20, -16],
+      position: [-13, 2],
       dashboard: {
         eyebrow: 'DASHBOARD',
         title: 'Trading Bots',
@@ -159,7 +159,7 @@ export const CONFIG = {
       label: 'speaking coach',
       screen: 'speaking',
       beaconColor: '#34d399',
-      position: [22, -12],
+      position: [13, 6],
       dashboard: {
         eyebrow: 'COACH',
         title: 'Speaking Coach',
