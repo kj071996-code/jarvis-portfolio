@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#030308" />
+    <title>JARVIS — Portfolio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="/assets/index-CGa81Spr.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CZJNqsqA.css">
+  </head>
+  <body>
+    <div id="app">
+      <div id="scene"></div>
+
+      <!-- Intro caption, typed line by line -->
+      <div id="intro-caption" class="overlay hidden" aria-live="polite"></div>
+      <button id="skip-intro" class="pill ghost hidden">skip intro</button>
+
+      <!-- World HUD -->
+      <div id="hud" class="hidden">
+        <div id="brand">jarvis<span> — portfolio</span></div>
+        <button id="leave-btn" class="pill ghost">leave</button>
+      </div>
+      <div id="prompt" class="hidden"><span id="prompt-key">enter</span><span id="prompt-text"></span></div>
+      <div id="hint" class="hidden">wasd / arrows to walk &nbsp;·&nbsp; enter to open a station</div>
+
+      <!-- Mobile controls -->
+      <div id="joystick" class="hidden">
+        <div id="joystick-knob"></div>
+      </div>
+
+      <!-- Project screens -->
+      <div id="project-overlay" class="hidden"></div>
+
+      <!-- Outro -->
+      <div id="vortex-hint" class="hidden">to exit full screen, press and hold esc</div>
+      <button id="return-world" class="pill ghost hidden">return to the world</button>
+
+      <!-- Loading / error -->
+      <div id="loader"><div class="loader-ring"></div><p>booting jarvis…</p></div>
+    </div>
+  </body>
+</html>
