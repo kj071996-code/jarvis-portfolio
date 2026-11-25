@@ -78,9 +78,9 @@ export function createOutro(config, reducedMotion) {
     tl.to(camera.position, { z: 5.5, duration: 2.1, ease: 'power2.in' }, 0)
       .to(group.scale, { x: 0.55, y: 0.55, z: 0.55, duration: 2.1, ease: 'power2.in' }, 0)
       .to(burst.scale, { x: 3.2, y: 3.2, z: 3.2, duration: 0.9, ease: 'power3.out' }, 1.9)
-      .to(burstMat, { opacity: 1, duration: 0.35 }, 1.9)
+      .to(burstMat, { opacity: 1, duration: 0.35, ease: 'power1.out' }, 1.9)
       .to(burstMat, { opacity: 0, duration: 1.1, ease: 'power1.out' }, 2.5)
-      .to(mat, { opacity: 0.25, duration: 1.0 }, 2.2)
+      .to(mat, { opacity: 0.25, duration: 1.0, ease: 'power1.out' }, 2.2)
     return tl
   }
 

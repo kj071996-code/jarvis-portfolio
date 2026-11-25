@@ -90,6 +90,10 @@ export const CONFIG = {
     beams: 130, // thin vertical light beams
     avatar: {
       speed: 6.5, // world units per second
+      // Movement feel — the velocity eases toward its target instead of
+      // snapping, so the avatar starts and stops smoothly. Higher = snappier.
+      accel: 8, // per-second ease rate toward the target velocity
+      turnRate: 6, // per-second ease rate for the heading (smooth turns)
       start: [0, 0, 26], // stands in the light, facing the horizon
       color: '#050507',
     },
@@ -99,6 +103,7 @@ export const CONFIG = {
       lookHeight: 4.5, // camera looks up more — sky, horizon glow and beacon
       // labels sit comfortably in frame instead of near the top edge
       orbitSway: 0.16, // radians of slow orbital drift
+      followRate: 2.8, // per-second exponential damping of the follow camera
     },
     bounds: 92, // avatar cannot walk past this radius
     enterDistance: 5, // how close to a beacon before "Enter" appears

@@ -347,8 +347,9 @@ export function createWorld(config, reducedMotion) {
       b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase)
     }
 
-    // avatar gentle bob + lean into movement
-    avatar.position.y = Math.abs(Math.sin(time * 2.2)) * 0.03
+    // avatar gentle bob — a smooth sine, not |sin| (whose cusp at the bottom
+    // reverses direction abruptly and reads as a hitch in the walk)
+    avatar.position.y = 0.015 + 0.015 * Math.sin(time * 2.2)
     avatar.rotation.y = avatarHeading
   }
 

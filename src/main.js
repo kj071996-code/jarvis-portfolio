@@ -65,10 +65,27 @@ let projectCleanup = null
 
 const avatarPos = new THREE.Vector3(...CONFIG.world.avatar.start)
 let avatarHeading = Math.PI // facing the horizon light
+let targetHeading = Math.PI // where the heading is easing toward
 let camYaw = Math.PI // camera sits behind the avatar
 const keys = new Set()
 let joystickVec = { x: 0, y: 0 }
 let walkTarget = null // tap-to-walk destination (Vector3) or null
+// Smoothed movement — the velocity eases toward its target (quick to start,
+// smooth to stop) instead of snapping to full speed or stopping dead.
+const moveVel = new THREE.Vector2(0, 0) // current velocity, world space (x, z)
+// While a GSAP tween owns the camera (first entry drop), the follow lerp
+// must not fight it, or the drop arrives early and loses its smooth ease.
+let cameraHeld = false
+// Cached HUD strings — the DOM is only touched when the text actually
+// changes, instead of writing textContent every frame (layout thrash).
+let lastPromptText = ''
+let lastNearestText = ''
+
+// Ease an angle toward a target along the shortest arc (frame-rate independent).
+function dampAngle(current, target, lambda, dt) {
+  const diff = Math.atan2(Math.sin(target - current), Math.cos(target - current))
+  return current + diff * (1 - Math.exp(-dt * lambda))
+}
 
 // ── HUD helpers ────────────────────────────────────────────────────────────
 function show(id) { $(id).classList.remove('hidden') }
@@ -120,6 +137,8 @@ function enterWorld(firstTime = false) {
     avatarHeading = Math.PI
     camYaw = Math.PI
   }
+  targetHeading = avatarHeading
+  moveVel.set(0, 0)
   world.avatar.position.copy(avatarPos)
 
   if (firstTime) {
@@ -134,12 +153,14 @@ function enterWorld(firstTime = false) {
     const settleYaw = avatarHeading + Math.PI
     camera.position.set(avatarPos.x, 26, avatarPos.z + 34)
     camera.lookAt(avatarPos.x, 0, avatarPos.z - 10)
+    cameraHeld = true
     gsap.to(camera.position, {
       x: avatarPos.x + Math.sin(settleYaw) * CONFIG.world.camera.distance,
       y: CONFIG.world.camera.height,
       z: avatarPos.z + Math.cos(settleYaw) * CONFIG.world.camera.distance,
       duration: reducedMotion ? 0.4 : 1.8,
       ease: 'power2.inOut',
+      onComplete: () => { cameraHeld = false },
     })
   }
 }
@@ -148,6 +169,9 @@ function enterWorld(firstTime = false) {
 function openProject(project) {
   state = 'project'
   returnSpot = { pos: avatarPos.clone(), heading: avatarHeading, camYaw }
+  // the avatar stops when a dashboard opens — no stale velocity or lean
+  moveVel.set(0, 0)
+  world.avatar.rotation.x = 0
   hide('hud')
   hide('hint')
   hide('prompt')
@@ -289,7 +313,11 @@ function updateWorld(dt, time) {
   ix += joystickVec.x
   iz += joystickVec.y
 
-  let moving = false
+  // Desired velocity (world space) from the input — zero when there is none.
+  // The avatar's velocity eases toward it instead of snapping, so starting
+  // and stopping feel smooth rather than robotic.
+  let dvx = 0
+  let dvz = 0
   if (ix !== 0 || iz !== 0) {
     const len = Math.hypot(ix, iz) || 1
     ix /= len
@@ -299,23 +327,31 @@ function updateWorld(dt, time) {
     const cos = Math.cos(camYaw)
     const wx = ix * cos - iz * sin
     const wz = ix * sin + iz * cos
-    avatarPos.x += wx * CONFIG.world.avatar.speed * dt
-    avatarPos.z += wz * CONFIG.world.avatar.speed * dt
-    avatarHeading = Math.atan2(wx, wz)
-    moving = true
+    dvx = wx * CONFIG.world.avatar.speed
+    dvz = wz * CONFIG.world.avatar.speed
+    targetHeading = Math.atan2(wx, wz)
   } else if (walkTarget) {
     tmpV.copy(walkTarget).sub(avatarPos)
     tmpV.y = 0
     const dist = tmpV.length()
     if (dist > 0.6) {
       tmpV.normalize()
-      avatarPos.addScaledVector(tmpV, CONFIG.world.avatar.speed * 0.85 * dt)
-      avatarHeading = Math.atan2(tmpV.x, tmpV.z)
-      moving = true
+      dvx = tmpV.x * CONFIG.world.avatar.speed * 0.85
+      dvz = tmpV.z * CONFIG.world.avatar.speed * 0.85
+      targetHeading = Math.atan2(tmpV.x, tmpV.z)
     } else {
       walkTarget = null
     }
   }
+  const accelK = 1 - Math.exp(-dt * CONFIG.world.avatar.accel)
+  moveVel.x += (dvx - moveVel.x) * accelK
+  moveVel.y += (dvz - moveVel.y) * accelK
+  avatarPos.x += moveVel.x * dt
+  avatarPos.z += moveVel.y * dt
+  const moving = moveVel.lengthSq() > 0.001
+  // Ease the heading toward the target along the shortest arc — turning is
+  // smooth, and the camera orbit (which follows the heading) no longer snaps.
+  avatarHeading = dampAngle(avatarHeading, targetHeading, CONFIG.world.avatar.turnRate, dt)
 
   // clamp to the field
   avatarPos.x = THREE.MathUtils.clamp(avatarPos.x, -CONFIG.world.bounds, CONFIG.world.bounds)
@@ -327,10 +363,14 @@ function updateWorld(dt, time) {
   camYaw = avatarHeading + Math.PI + sway
   const cx = avatarPos.x + Math.sin(camYaw) * CONFIG.world.camera.distance
   const cz = avatarPos.z + Math.cos(camYaw) * CONFIG.world.camera.distance
-  const lerpK = 1 - Math.exp(-dt * 2.2)
-  camera.position.x += (cx - camera.position.x) * lerpK
-  camera.position.y += (CONFIG.world.camera.height - camera.position.y) * lerpK
-  camera.position.z += (cz - camera.position.z) * lerpK
+  // While the first-entry tween owns the camera, the follow lerp stays out —
+  // otherwise it yanks the drop and the smooth ease is lost.
+  if (!cameraHeld) {
+    const lerpK = 1 - Math.exp(-dt * CONFIG.world.camera.followRate)
+    camera.position.x += (cx - camera.position.x) * lerpK
+    camera.position.y += (CONFIG.world.camera.height - camera.position.y) * lerpK
+    camera.position.z += (cz - camera.position.z) * lerpK
+  }
   camera.lookAt(avatarPos.x, CONFIG.world.camera.lookHeight, avatarPos.z)
 
   // beacon proximity → "Enter" prompt
@@ -340,20 +380,24 @@ function updateWorld(dt, time) {
     const d = Math.hypot(avatarPos.x - b.group.position.x, avatarPos.z - b.group.position.z)
     if (d < nearestDist) { nearestDist = d; nearest = b }
   }
-  if (nearest && nearestDist < CONFIG.world.enterDistance) {
-    activeBeacon = nearest
-    $('prompt-text').textContent = `open ${nearest.project.label}`
-    show('prompt')
-  } else {
-    activeBeacon = null
-    hide('prompt')
+  activeBeacon = nearest && nearestDist < CONFIG.world.enterDistance ? nearest : null
+  // Only touch the DOM when the prompt text actually changes — writing
+  // textContent every frame is layout thrash that drags the frame rate.
+  const promptText = activeBeacon ? `open ${activeBeacon.project.label}` : ''
+  if (promptText !== lastPromptText) {
+    lastPromptText = promptText
+    if (promptText) {
+      $('prompt-text').textContent = promptText
+      show('prompt')
+    } else {
+      hide('prompt')
+    }
   }
 
   // nearest-station readout — always a visible destination while in the world.
   // Hidden when the "open …" prompt is showing (it already says what to do).
-  if (activeBeacon) {
-    hide('nearest')
-  } else if (nearest) {
+  let nearestText = ''
+  if (!activeBeacon && nearest) {
     // bearing of the beacon relative to where the camera is looking
     camera.getWorldDirection(tmpFwd)
     const dx = nearest.group.position.x - avatarPos.x
@@ -370,13 +414,22 @@ function updateWorld(dt, time) {
     let arrow = '▲' // ahead
     if (angle >= Math.PI / 4) arrow = '◀' // left
     else if (angle <= -Math.PI / 4) arrow = '▶' // right
-    $('nearest').textContent = `${arrow} nearest station: ${nearest.project.label} · ${Math.round(nearestDist)}m`
-    show('nearest')
-  } else {
-    hide('nearest')
+    nearestText = `${arrow} nearest station: ${nearest.project.label} · ${Math.round(nearestDist)}m`
+  }
+  if (nearestText !== lastNearestText) {
+    lastNearestText = nearestText
+    if (nearestText) {
+      $('nearest').textContent = nearestText
+      show('nearest')
+    } else {
+      hide('nearest')
+    }
   }
 
   world.update(time, dt, avatarPos, avatarHeading)
+  // Lean gently into movement — the speed is already smoothed, so the lean is too.
+  const speedFrac = Math.min(1, moveVel.length() / CONFIG.world.avatar.speed)
+  world.avatar.rotation.x = speedFrac * 0.1
   return moving
 }
 
@@ -386,26 +439,36 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix()
   renderer.setSize(window.innerWidth, window.innerHeight)
   composer.setSize(window.innerWidth, window.innerHeight)
-  world.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2))
+  applyPixelRatio()
 })
 
-// ── Adaptive quality: step pixel ratio down if fps sags ────────────────────
+// ── Adaptive quality: step pixel ratio down promptly if fps sags ──────────
 let fpsFrames = 0
 let fpsTime = 0
 let qualityStep = 0
+// The stepped-down ratio is the one every consumer uses, so a window resize
+// never silently resets the terrain back to full res.
+function basePixelRatio() { return Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2) }
+function currentPixelRatio() { return Math.max(1, basePixelRatio() - qualityStep * 0.5) }
+function applyPixelRatio() {
+  const ratio = currentPixelRatio()
+  renderer.setPixelRatio(ratio)
+  composer.setPixelRatio(ratio)
+  world.setPixelRatio(ratio)
+}
 function adaptiveQuality(dt) {
   fpsFrames++
   fpsTime += dt
-  if (fpsTime >= 3) {
+  // 2s window (was 3s), 45 fps threshold (was 42), 0.5 steps (was 0.25):
+  // a sagging frame rate reaches the floor (1.0) in ~4s instead of ~9s,
+  // so the motion stays smooth instead of chopping for most of a walk.
+  if (fpsTime >= 2) {
     const fps = fpsFrames / fpsTime
     fpsFrames = 0
     fpsTime = 0
-    if (fps < 42 && qualityStep < 3) {
+    if (fps < 45 && qualityStep < 2) {
       qualityStep++
-      const ratio = Math.max(1, Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2) - qualityStep * 0.25)
-      renderer.setPixelRatio(ratio)
-      composer.setPixelRatio(ratio)
-      world.setPixelRatio(ratio)
+      applyPixelRatio()
     }
   }
 }
@@ -419,12 +482,14 @@ function animate() {
 
   if (state === 'intro') {
     intro.update(time)
+    adaptiveQuality(dt)
   } else if (state === 'world' || state === 'project') {
     if (state === 'world') updateWorld(dt, time)
     else world.update(time, dt, avatarPos, avatarHeading)
     adaptiveQuality(dt)
   } else if (state === 'outro') {
     outro.update(dt)
+    adaptiveQuality(dt)
   }
 
   composer.render()
