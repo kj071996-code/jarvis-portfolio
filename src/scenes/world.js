@@ -41,13 +41,18 @@ function makeLabelSprite(text, color) {
   c.height = 128
   const ctx = c.getContext('2d')
   ctx.clearRect(0, 0, 512, 128)
-  ctx.font = '500 44px Inter, sans-serif'
+  ctx.font = '600 44px Inter, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  // dark rounded backing so the white text reads against bright terrain
+  // The label is a coloured dot (the group's beacon colour) plus the name,
+  // centred as one unit on a dark rounded backing so the white text reads
+  // against bright terrain.
   const tw = ctx.measureText(text.toLowerCase()).width
+  const dotR = 11
+  const gap = 18
   const padX = 26
-  const bw = Math.min(512 - 8, tw + padX * 2)
+  const contentW = dotR * 2 + gap + tw
+  const bw = Math.min(512 - 8, contentW + padX * 2)
   const bh = 76
   const bx = (512 - bw) / 2
   const by = (128 - bh) / 2
@@ -59,12 +64,22 @@ function makeLabelSprite(text, color) {
   ctx.arcTo(bx, by + bh, bx, by, r)
   ctx.arcTo(bx, by, bx + bw, by, r)
   ctx.closePath()
-  ctx.fillStyle = 'rgba(3,3,8,0.65)'
+  ctx.fillStyle = 'rgba(3,3,8,0.8)'
   ctx.fill()
+  const cx = 256 - contentW / 2
+  // group-colour dot
+  ctx.beginPath()
+  ctx.arc(cx + dotR, 64, dotR, 0, Math.PI * 2)
+  ctx.fillStyle = color
+  ctx.shadowColor = color
+  ctx.shadowBlur = 18
+  ctx.fill()
+  ctx.shadowBlur = 0
+  // name, to the right of the dot
   ctx.shadowColor = color
   ctx.shadowBlur = 22
   ctx.fillStyle = '#ffffff'
-  ctx.fillText(text.toLowerCase(), 256, 64)
+  ctx.fillText(text.toLowerCase(), cx + dotR * 2 + gap + tw / 2, 64)
   const tex = new THREE.CanvasTexture(c)
   tex.colorSpace = THREE.SRGBColorSpace
   const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })

@@ -18,8 +18,8 @@ export const CONFIG = {
   colors: {
     background: '#030308',
     backgroundAlt: '#05050a',
-    panel: '#0a0a10',
-    panelAlt: '#0e0e16',
+    panel: '#0a0f1c',
+    panelAlt: '#0e1526',
     border: 'rgba(255,255,255,0.08)',
     borderStrong: 'rgba(255,255,255,0.14)',
     ink: '#e8e8ea',
@@ -30,7 +30,7 @@ export const CONFIG = {
     orange: '#ff5a1f',
     red: '#ff2d55',
     blue: '#4f7cff',
-    purple: '#8b5cf6',
+    rose: '#f43f5e',
     teal: '#14b8a6',
     tealBright: '#2dd4bf',
     green: '#34d399',
@@ -62,9 +62,9 @@ export const CONFIG = {
       barsMobile: 1400,
       innerRadius: 2.1, // hollow centre
       outerRadius: 5.4,
-      // Colour bands by radius: inner warm orange/red → blue/purple → white/gray spikes
+      // Colour bands by radius: inner warm orange/red → blue → white/gray spikes
       inner: ['#ff2d55', '#ff5a1f', '#ffb347'],
-      mid: ['#4f7cff', '#8b5cf6'],
+      mid: ['#4f7cff', '#3b82f6'],
       outer: ['#e8e8ea', '#9aa0a6', '#ffffff'],
       rotateSpeed: 0.06, // radians per second
       pulseSpeed: 1.4,
@@ -140,7 +140,7 @@ export const CONFIG = {
       name: 'Content',
       tagline: 'Makes the visuals, carousels, voiceover and video — and brand-checks everything before it leaves.',
       screen: 'group',
-      beaconColor: '#fb923c',
+      beaconColor: '#f97316',
       position: [-17.7, 8.3],
       agents: [
         { name: 'Visual Designer', role: 'Designs static social images for White Technologies in the Tri-Cities.', status: 'ready' },
@@ -174,7 +174,7 @@ export const CONFIG = {
       name: 'Publish',
       tagline: 'Schedules and publishes to TikTok, Reels, Shorts, X and newsletter — queue only, nothing posts without approval.',
       screen: 'group',
-      beaconColor: '#8b5cf6',
+      beaconColor: '#f43f5e',
       position: [0, 1],
       agents: [
         { name: 'Scheduler', role: 'Keeps the posting queue and the calendar for White Technologies.', status: 'ready' },
@@ -191,7 +191,7 @@ export const CONFIG = {
       name: 'Sales',
       tagline: 'Scores leads, books calls, sends reminders and follow-ups, and keeps the CRM current.',
       screen: 'group',
-      beaconColor: '#34d399',
+      beaconColor: '#10b981',
       position: [8.6, 2.5],
       agents: [
         { name: 'Lead Scorer', role: 'Scores inbound enquiries and local businesses for fit with White Technologies.', status: 'ready' },
@@ -225,7 +225,7 @@ export const CONFIG = {
       name: 'Data',
       tagline: 'Collects and deciphers the numbers — Research finds, Data deciphers.',
       screen: 'group',
-      beaconColor: '#22d3ee',
+      beaconColor: '#06b6d4',
       position: [23.5, 17.5],
       agents: [
         { name: 'Data Collector', role: 'Gathers raw figures from every channel into one place for the team.', status: 'ready' },

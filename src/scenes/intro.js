@@ -1,6 +1,6 @@
 // ── Scene 1 · Intro ring ───────────────────────────────────────────────────
 // A hollow disc of thousands of thin vertical bars, arranged radially like an
-// audio visualiser. Inner bars warm orange/red, mid bars blue/purple, outer
+// audio visualiser. Inner bars warm orange/red, mid bars blue, outer
 // bars white/gray spikes. Slowly pulses and rotates. On finish it collapses
 // to a point and the camera drops into the world.
 import * as THREE from 'three'
@@ -38,7 +38,7 @@ export function createIntro(config, reducedMotion) {
       baseHeight = 0.5 + Math.random() * 0.5
       col = innerCols[Math.floor(Math.random() * innerCols.length)]
     } else if (t < 0.74) {
-      // mid band — blue/purple
+      // mid band — blue
       baseHeight = 0.7 + Math.random() * 0.7
       col = midCols[Math.floor(Math.random() * midCols.length)]
     } else {
