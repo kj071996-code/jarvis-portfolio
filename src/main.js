@@ -33,12 +33,12 @@ scene.background = new THREE.Color(CONFIG.colors.background)
 scene.fog = new THREE.FogExp2(0x030308, 0.0075)
 
 const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 600)
-// Opens horizontal FOV to ~96° on 16:9 so the whole arc + orbit sway fits at spawn.
+// Opens horizontal FOV to ~92° on 16:9 so the whole arc + orbit sway fits at spawn (46, not 48 — 48 showed wide-angle edge stretch).
 function fitFov() {
   const aspect = window.innerWidth / window.innerHeight
   let v = 66
   if (aspect >= 1) {
-    v = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(48)) / aspect))
+    v = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(46)) / aspect))
     v = THREE.MathUtils.clamp(v, 58, 66)
   }
   camera.fov = v
@@ -254,6 +254,7 @@ function clearHover() {
   hoveredBeacon = null
   world.setHovered(null)
   container.classList.remove('pointing')
+  renderer.domElement.style.cursor = ''
 }
 
 function openProject(project) {
@@ -463,6 +464,9 @@ renderer.domElement.addEventListener('pointermove', (e) => {
     hoveredBeacon = rec
     world.setHovered(rec)
     container.classList.toggle('pointing', !!rec)
+    // set the cursor directly on the canvas too — the CSS class alone did
+    // not change it in the step-12 browser check
+    renderer.domElement.style.cursor = rec ? 'pointer' : ''
   }
 })
 

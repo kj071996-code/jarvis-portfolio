@@ -112,11 +112,12 @@ export function createOutro(config, reducedMotion) {
       // core glow builds as the camera closes in
       .to(glowMat, { opacity: 0.9, duration: 1.6, ease: 'power1.in' }, 0.6)
       .to(glow.scale, { x: 42, y: 42, z: 42, duration: 2.0, ease: 'power2.in' }, 0.6)
-      // starburst: discs fly out and flash, then settle at a bright glow
-      // instead of fading out entirely
+      // starburst: discs fly out and flash, then settle to a FAINT remnant
+      // (0.12, not 0.5) — a bright 0.5 fill keeps the whole frame white and
+      // defeats the dark rest; the soft core glow below carries the settle.
       .to(burst.scale, { x: 4, y: 4, z: 4, duration: 0.9, ease: 'power3.out' }, 1.9)
       .to(burstMat, { opacity: 1, duration: 0.3, ease: 'power1.out' }, 1.9)
-      .to(burstMat, { opacity: 0.5, duration: 1.2, ease: 'power1.out' }, 2.5)
+      .to(burstMat, { opacity: 0.12, duration: 1.2, ease: 'power1.out' }, 2.5)
       // The white dive is the climax; the resting state stays DARK, with a
       // soft white core still glowing. An all-white rest would wash out the
       // Esc hint and the return pill and break the dark brand; a core that

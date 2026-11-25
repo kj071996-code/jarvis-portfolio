@@ -387,11 +387,11 @@ export function createWorld(config, reducedMotion) {
       b.hover = (b.hover || 0) + ((b === hovered ? 1 : 0) - (b.hover || 0)) * k
       const h = b.hover
       const pulse = 0.3 + 0.07 * Math.sin(time * 1.8 + b.phase)
-      b.outer.material.opacity = pulse + 0.2 * h
+      b.outer.material.opacity = pulse + 0.45 * h
       b.core.material.opacity = 0.8 + 0.15 * Math.sin(time * 1.8 + b.phase)
-      b.label.position.y = 9.8 + Math.sin(time * 0.9 + b.phase) * 0.25 + 0.3 * h
-      b.label.scale.set(9 * (1 + 0.08 * h), 2.2 * (1 + 0.08 * h), 1)
-      b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase) + 0.2 * h
+      b.label.position.y = 9.8 + Math.sin(time * 0.9 + b.phase) * 0.25 + 0.6 * h
+      b.label.scale.set(9 * (1 + 0.15 * h), 2.2 * (1 + 0.15 * h), 1)
+      b.glow.material.opacity = 0.7 + 0.1 * Math.sin(time * 1.8 + b.phase) + 0.3 * h
     }
 
     // avatar gentle bob — a smooth sine, not |sin| (whose cusp at the bottom
