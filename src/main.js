@@ -141,6 +141,14 @@ function enterWorld(firstTime = false, instant = false) {
   show('hint')
   $('hint').textContent = isMobile ? CONFIG.controls.mobileHint : CONFIG.controls.desktopHint
   if (isMobile) show('joystick')
+  // Re-show the nearest-station pill on return: it was hidden when a
+  // dashboard/outro opened, and the DOM-write cache (lastNearestText) still
+  // holds the old string, so updateWorld would skip the write and the pill
+  // would stay hidden until the player moves a step. Show it now with the
+  // (still correct — same spot) text, and clear the cache so the next frame
+  // refreshes it.
+  if (lastNearestText) show('nearest')
+  lastNearestText = ''
 
   // restore the exact spot we left (or the spawn on first entry)
   if (returnSpot) {
